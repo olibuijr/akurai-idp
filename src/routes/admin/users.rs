@@ -151,12 +151,12 @@ async fn create_user(Json(body): Json<CreateUser>) -> impl IntoResponse {
 
     match result {
         Ok(_) => {
-            audit::log_audit_event(
+            audit::log_audit(
                 Some(&body.tenant_id),
                 Some(&id),
                 audit::USER_CREATED,
                 None,
-                Some(&json!({"email": body.email}).to_string()),
+                Some(&json!({"email": body.email})),
             );
             (StatusCode::CREATED, Json(json!({"id": id, "email": body.email, "tenant_id": body.tenant_id}))).into_response()
         }
@@ -214,7 +214,7 @@ async fn update_user(Path(id): Path<String>, Json(body): Json<UpdateUser>) -> im
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "user not found or no changes"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(None, Some(&id), audit::USER_UPDATED, None, None);
+            audit::log_audit(None, Some(&id), audit::USER_UPDATED, None, None);
             Json(json!({"ok": true})).into_response()
         }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
@@ -229,7 +229,7 @@ async fn delete_user(Path(id): Path<String>) -> impl IntoResponse {
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "user not found"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(None, Some(&id), audit::USER_DELETED, None, None);
+            audit::log_audit(None, Some(&id), audit::USER_DELETED, None, None);
             Json(json!({"ok": true})).into_response()
         }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
@@ -254,7 +254,7 @@ async fn reset_password(Path(id): Path<String>, Json(body): Json<ResetPassword>)
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "user not found"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(None, Some(&id), audit::USER_PASSWORD_CHANGED, None, None);
+            audit::log_audit(None, Some(&id), audit::USER_PASSWORD_CHANGED, None, None);
             Json(json!({"ok": true})).into_response()
         }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
@@ -276,7 +276,7 @@ async fn lock_user(Path(id): Path<String>) -> impl IntoResponse {
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "user not found"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(None, Some(&id), audit::USER_LOCKED, None, None);
+            audit::log_audit(None, Some(&id), audit::USER_LOCKED, None, None);
             Json(json!({"ok": true, "locked_until": locked_until})).into_response()
         }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
@@ -296,7 +296,7 @@ async fn unlock_user(Path(id): Path<String>) -> impl IntoResponse {
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "user not found"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(None, Some(&id), audit::USER_UPDATED, None, Some("{\"action\":\"unlock\"}"));
+            audit::log_audit(None, Some(&id), audit::USER_UPDATED, None, Some(&json!({"action": "unlock"})));
             Json(json!({"ok": true})).into_response()
         }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),

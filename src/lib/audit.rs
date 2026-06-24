@@ -58,3 +58,17 @@ pub fn log_audit_event(
         eprintln!("[audit] failed to write audit event {event}: {e}");
     }
 }
+
+/// Convenience wrapper: acquires a DB connection internally.
+/// Use this from code that runs outside a `with_db` closure.
+pub fn log_audit(
+    tenant_id: Option<&str>,
+    user_id: Option<&str>,
+    event: &str,
+    ip: Option<&str>,
+    metadata: Option<&Value>,
+) {
+    crate::db::with_db(|conn| {
+        log_audit_event(conn, tenant_id, user_id, event, ip, metadata);
+    });
+}

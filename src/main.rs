@@ -10,10 +10,12 @@ use axum::{
     middleware as axum_mw,
     response::IntoResponse,
     routing::get,
-    Json, Router,
+    Extension, Json, Router,
 };
 use serde_json::json;
 use subtle::ConstantTimeEq;
+
+use crate::middleware::rate_limit::RateLimitState;
 
 #[tokio::main]
 async fn main() {
@@ -46,73 +48,23 @@ async fn main() {
         .nest("/audit", routes::admin::audit::router())
         .layer(axum_mw::from_fn(admin_auth_middleware));
 
-    // Public OIDC routes
-    let oidc_routes = Router::new()
-        .route("/.well-known/openid-configuration", get(routes::well_known::openid_configuration))
-        .route("/.well-known/jwks.json", get(routes::well_known::jwks))
-        .route("/authorize", get(routes::authorize::authorize))
-        .route("/token", axum::routing::post(routes::token::token))
-        .route("/userinfo", get(routes::userinfo::userinfo).post(routes::userinfo::userinfo))
-        .route("/introspect", axum::routing::post(routes::introspect::introspect))
-        .route("/revoke", axum::routing::post(routes::revoke::revoke));
-
-    // Auth page routes (login, mfa, logout)
-    let auth_pages = Router::new()
-        .route("/login", get(routes::auth_pages::login_page).post(routes::auth_pages::login_submit))
-        .route("/mfa", get(routes::auth_pages::mfa_page).post(routes::auth_pages::mfa_submit))
-        .route("/logout", get(routes::auth_pages::logout).post(routes::auth_pages::logout));
-
-    // Account routes (session-auth'd)
-    let account_routes = Router::new()
-        .nest("/account", routes::account::router());
-
-    // Apply CSRF middleware to auth pages
-    let auth_pages_with_csrf = auth_pages
-        .layer(axum_mw::from_fn(middleware::csrf::csrf_middleware));
-
-    // Apply tighter rate limits to sensitive endpoints
-    let token_route = Router::new()
-        .route("/token", axum::routing::post(routes::token::token))
-        .layer(axum_mw::from_fn(|req, next: axum::middleware::Next| {
-            middleware::rate_limit::rate_limit_middleware(req, next, 30, 60)
-        }));
-
-    let introspect_route = Router::new()
-        .route("/introspect", axum::routing::post(routes::introspect::introspect))
-        .layer(axum_mw::from_fn(|req, next: axum::middleware::Next| {
-            middleware::rate_limit::rate_limit_middleware(req, next, 60, 60)
-        }));
-
-    let revoke_route = Router::new()
-        .route("/revoke", axum::routing::post(routes::revoke::revoke))
-        .layer(axum_mw::from_fn(|req, next: axum::middleware::Next| {
-            middleware::rate_limit::rate_limit_middleware(req, next, 30, 60)
-        }));
-
-    let login_rate_limited = Router::new()
-        .route("/login", get(routes::auth_pages::login_page).post(routes::auth_pages::login_submit))
-        .layer(axum_mw::from_fn(middleware::csrf::csrf_middleware))
-        .layer(axum_mw::from_fn(|req, next: axum::middleware::Next| {
-            middleware::rate_limit::rate_limit_middleware(req, next, 20, 60)
-        }));
-
-    // Build the full app with route-specific rate limits taking precedence
+    // Build the full app using each module's router()
     let app = Router::new()
-        // Tighter-rate-limited routes first (more specific)
-        .merge(login_rate_limited)
-        .merge(token_route)
-        .merge(introspect_route)
-        .merge(revoke_route)
-        // MFA + logout with CSRF
-        .route("/mfa", get(routes::auth_pages::mfa_page).post(routes::auth_pages::mfa_submit))
-        .route("/logout", get(routes::auth_pages::logout).post(routes::auth_pages::logout))
-        // OIDC discovery + authorize + userinfo (standard rate limit)
-        .route("/.well-known/openid-configuration", get(routes::well_known::openid_configuration))
-        .route("/.well-known/jwks.json", get(routes::well_known::jwks))
-        .route("/authorize", get(routes::authorize::authorize))
-        .route("/userinfo", get(routes::userinfo::userinfo).post(routes::userinfo::userinfo))
+        // Auth pages (login/mfa/logout) with CSRF
+        .merge(
+            routes::auth_pages::router()
+                .layer(axum_mw::from_fn(middleware::csrf::csrf_protection))
+        )
+        // OIDC discovery
+        .merge(routes::well_known::router())
+        // OIDC endpoints
+        .merge(routes::authorize::router())
+        .merge(routes::token::router())
+        .merge(routes::userinfo::router())
+        .merge(routes::introspect::router())
+        .merge(routes::revoke::router())
         // Account (session-auth'd)
-        .merge(account_routes)
+        .nest("/account", routes::account::router())
         // Admin API
         .nest("/admin", admin_router)
         // Health check
@@ -120,10 +72,9 @@ async fn main() {
         // 404 catch-all
         .fallback(not_found)
         // Global middleware: secure headers + default rate limit
-        .layer(axum_mw::from_fn(middleware::secure_headers::secure_headers_middleware))
-        .layer(axum_mw::from_fn(|req, next: axum::middleware::Next| {
-            middleware::rate_limit::rate_limit_middleware(req, next, 100, 60)
-        }));
+        .layer(axum_mw::from_fn(middleware::secure_headers::secure_headers))
+        .layer(axum_mw::from_fn(middleware::rate_limit::rate_limit))
+        .layer(Extension(RateLimitState::new(60_000, 100)));
 
     tracing::info!("listening on {}", cfg.listen_addr);
 

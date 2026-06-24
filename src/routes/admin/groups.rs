@@ -92,12 +92,12 @@ async fn create_group(Json(body): Json<CreateGroup>) -> impl IntoResponse {
 
     match result {
         Ok(_) => {
-            audit::log_audit_event(
+            audit::log_audit(
                 Some(&body.tenant_id),
                 None,
                 audit::GROUP_CREATED,
                 None,
-                Some(&json!({"name": body.name, "group_id": id}).to_string()),
+                Some(&json!({"name": body.name, "group_id": id})),
             );
             (StatusCode::CREATED, Json(json!({"id": id, "name": body.name, "tenant_id": body.tenant_id}))).into_response()
         }
@@ -120,7 +120,7 @@ async fn delete_group(Path(id): Path<String>) -> impl IntoResponse {
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "group not found"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(None, None, audit::GROUP_DELETED, None, Some(&json!({"group_id": id}).to_string()));
+            audit::log_audit(None, None, audit::GROUP_DELETED, None, Some(&json!({"group_id": id})));
             Json(json!({"ok": true})).into_response()
         }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
@@ -137,12 +137,12 @@ async fn add_member(Path(id): Path<String>, Json(body): Json<AddMember>) -> impl
 
     match result {
         Ok(_) => {
-            audit::log_audit_event(
+            audit::log_audit(
                 None,
                 Some(&body.user_id),
                 audit::GROUP_MEMBER_ADDED,
                 None,
-                Some(&json!({"group_id": id, "user_id": body.user_id}).to_string()),
+                Some(&json!({"group_id": id, "user_id": body.user_id})),
             );
             (StatusCode::CREATED, Json(json!({"ok": true}))).into_response()
         }
@@ -170,12 +170,12 @@ async fn remove_member(Path((id, user_id)): Path<(String, String)>) -> impl Into
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "membership not found"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(
+            audit::log_audit(
                 None,
                 Some(&user_id),
                 audit::GROUP_MEMBER_REMOVED,
                 None,
-                Some(&json!({"group_id": id, "user_id": user_id}).to_string()),
+                Some(&json!({"group_id": id, "user_id": user_id})),
             );
             Json(json!({"ok": true})).into_response()
         }

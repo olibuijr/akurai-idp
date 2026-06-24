@@ -2,7 +2,7 @@ use axum::{
     extract::Path,
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, patch, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -79,12 +79,12 @@ async fn create_tenant(Json(body): Json<CreateTenant>) -> impl IntoResponse {
 
     match result {
         Ok(_) => {
-            audit::log_audit_event(
+            audit::log_audit(
                 Some(&id),
                 None,
                 audit::TENANT_CREATED,
                 None,
-                Some(&json!({"name": body.name, "slug": body.slug}).to_string()),
+                Some(&json!({"name": body.name, "slug": body.slug})),
             );
             (StatusCode::CREATED, Json(json!({"id": id, "name": body.name, "slug": body.slug}))).into_response()
         }
@@ -135,7 +135,7 @@ async fn update_tenant(Path(id): Path<String>, Json(body): Json<UpdateTenant>) -
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "tenant not found or no changes"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(Some(&id), None, audit::TENANT_UPDATED, None, None);
+            audit::log_audit(Some(&id), None, audit::TENANT_UPDATED, None, None);
             Json(json!({"ok": true})).into_response()
         }
         Err(e) => {
@@ -157,7 +157,7 @@ async fn delete_tenant(Path(id): Path<String>) -> impl IntoResponse {
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "tenant not found"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(Some(&id), None, audit::TENANT_DELETED, None, None);
+            audit::log_audit(Some(&id), None, audit::TENANT_DELETED, None, None);
             Json(json!({"ok": true})).into_response()
         }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),

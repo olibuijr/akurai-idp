@@ -115,12 +115,12 @@ async fn create_client(Json(body): Json<CreateClient>) -> impl IntoResponse {
 
     match result {
         Ok(_) => {
-            audit::log_audit_event(
+            audit::log_audit(
                 Some(&body.tenant_id),
                 None,
                 audit::CLIENT_CREATED,
                 None,
-                Some(&json!({"client_id": id, "name": body.name}).to_string()),
+                Some(&json!({"client_id": id, "name": body.name})),
             );
             (StatusCode::CREATED, Json(json!({
                 "id": id,
@@ -145,7 +145,7 @@ async fn delete_client(Path(id): Path<String>) -> impl IntoResponse {
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "client not found"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(None, None, audit::CLIENT_DELETED, None, Some(&json!({"client_id": id}).to_string()));
+            audit::log_audit(None, None, audit::CLIENT_DELETED, None, Some(&json!({"client_id": id})));
             Json(json!({"ok": true})).into_response()
         }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
@@ -166,7 +166,7 @@ async fn rotate_secret(Path(id): Path<String>) -> impl IntoResponse {
     match result {
         Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "client not found"}))).into_response(),
         Ok(_) => {
-            audit::log_audit_event(None, None, audit::CLIENT_SECRET_ROTATED, None, Some(&json!({"client_id": id}).to_string()));
+            audit::log_audit(None, None, audit::CLIENT_SECRET_ROTATED, None, Some(&json!({"client_id": id})));
             Json(json!({"id": id, "client_secret": new_secret})).into_response()
         }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
