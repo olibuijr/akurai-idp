@@ -1,0 +1,9 @@
+pub mod admin;
+pub mod auth_pages;
+pub mod authorize;
+pub mod account;
+pub mod introspect;
+pub mod revoke;
+pub mod token;
+pub mod userinfo;
+pub mod well_known;

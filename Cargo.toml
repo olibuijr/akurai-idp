@@ -1,0 +1,36 @@
+[package]
+name = "akurai-idp"
+version = "0.1.0"
+edition = "2024"
+description = "Lightweight Rust OIDC/OAuth2 identity provider for AkurAI — replaces 96MB Node process"
+license = "MIT"
+repository = "https://github.com/olibuijr/akurai-idp"
+
+[dependencies]
+axum = { version = "0.8", features = ["json", "form"] }
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["set-header"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.35", features = ["bundled"] }
+sha2 = "0.10"
+subtle = "2"
+hex = "0.4"
+rand = "0.9"
+base64 = "0.22"
+argon2 = "0.5"
+password-hash = "0.5"
+ed25519-dalek = { version = "2", features = ["pem", "rand_core"] }
+jsonwebtoken = "9"
+totp-rs = { version = "5", features = ["gen_secret"] }
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
