@@ -58,7 +58,10 @@ async fn main() {
         // OIDC discovery
         .merge(routes::well_known::router())
         // OIDC endpoints
-        .merge(routes::authorize::router())
+        .merge(
+            routes::authorize::router()
+                .layer(axum_mw::from_fn(middleware::auth::session_optional))
+        )
         .merge(routes::token::router())
         .merge(routes::userinfo::router())
         .merge(routes::introspect::router())
