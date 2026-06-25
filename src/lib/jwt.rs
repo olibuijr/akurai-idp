@@ -1,5 +1,5 @@
 use base64::Engine;
-use ed25519_dalek::{pkcs8::DecodePrivateKey, pkcs8::DecodePublicKey, SigningKey, VerifyingKey};
+use ed25519_dalek::{pkcs8::DecodePublicKey, SigningKey, VerifyingKey};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde_json::Value;
 
@@ -39,9 +39,6 @@ pub fn sign_token(
     kid: &str,
     expires_in_secs: i64,
 ) -> Result<String, String> {
-    let signing_key =
-        SigningKey::from_pkcs8_pem(private_key_pem).map_err(|e| format!("invalid private key: {e}"))?;
-
     let mut header = Header::new(Algorithm::EdDSA);
     header.kid = Some(kid.to_string());
 
@@ -52,17 +49,16 @@ pub fn sign_token(
         obj.entry("exp").or_insert(Value::from(now + expires_in_secs));
     }
 
-    let encoding_key = EncodingKey::from_ed_der(signing_key.to_keypair_bytes().as_slice());
+    let encoding_key = EncodingKey::from_ed_pem(private_key_pem.as_bytes())
+        .map_err(|e| format!("invalid private key: {e}"))?;
     encode(&header, &payload, &encoding_key).map_err(|e| format!("jwt sign error: {e}"))
 }
 
 /// Verify a JWT and return its decoded payload.
 /// Returns Err if the token is invalid or expired.
 pub fn verify_token(token: &str, public_key_pem: &str) -> Result<Value, String> {
-    let verifying_key =
-        VerifyingKey::from_public_key_pem(public_key_pem).map_err(|e| format!("invalid public key: {e}"))?;
-
-    let decoding_key = DecodingKey::from_ed_der(verifying_key.to_bytes().as_slice());
+    let decoding_key = DecodingKey::from_ed_pem(public_key_pem.as_bytes())
+        .map_err(|e| format!("invalid public key: {e}"))?;
 
     let mut validation = Validation::new(Algorithm::EdDSA);
     validation.validate_exp = true;
