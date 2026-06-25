@@ -47,7 +47,7 @@ pub fn router() -> Router {
 }
 
 fn parse_json_array(s: &str) -> Vec<String> {
-    serde_json::from_str(s).unwrap_or_default()
+    crate::lib::parse_json_or_space_separated(s)
 }
 
 async fn list_clients(Query(q): Query<ListQuery>) -> impl IntoResponse {

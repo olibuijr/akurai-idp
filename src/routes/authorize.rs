@@ -80,16 +80,16 @@ async fn authorize_endpoint(
     };
 
     // Validate redirect_uri against registered URIs
-    let allowed_uris: Vec<&str> = client.redirect_uris.split_whitespace().collect();
-    if !allowed_uris.contains(&redirect_uri.as_str()) {
+    let allowed_uris = crate::lib::parse_json_or_space_separated(&client.redirect_uris);
+    if !allowed_uris.iter().any(|u| u == &redirect_uri) {
         return auth_error_page("Invalid redirect_uri");
     }
 
     // Validate scopes
     let requested_scopes = params.scope.as_deref().unwrap_or("openid");
-    let allowed_scopes: Vec<&str> = client.scopes.split_whitespace().collect();
+    let allowed_scopes = crate::lib::parse_json_or_space_separated(&client.scopes);
     for scope in requested_scopes.split_whitespace() {
-        if !allowed_scopes.contains(&scope) {
+        if !allowed_scopes.iter().any(|s| s == scope) {
             return auth_error_redirect(
                 Some(&redirect_uri),
                 params.state.as_deref(),

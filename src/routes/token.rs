@@ -431,7 +431,8 @@ async fn handle_client_credentials(params: TokenRequest, ip: &str) -> axum::resp
         None => return token_error(StatusCode::UNAUTHORIZED, "invalid_client", "Client not found"),
     };
 
-    if !client.grant_types.split_whitespace().any(|g| g == "client_credentials") {
+    let grant_types = crate::lib::parse_json_or_space_separated(&client.grant_types);
+    if !grant_types.iter().any(|g| g == "client_credentials") {
         return token_error(StatusCode::BAD_REQUEST, "unauthorized_client", "Grant type not allowed");
     }
 
