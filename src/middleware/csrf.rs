@@ -39,15 +39,44 @@ pub async fn csrf_protection(request: Request<Body>, next: Next) -> Response<Bod
         }
     };
 
-    // Check X-CSRF-Token header first, then fall back to _csrf form field
-    let submitted_token = get_csrf_header(&request)
-        .or_else(|| get_csrf_form_field(&request));
-
-    match submitted_token {
-        Some(ref token) if token == &cookie_token => {
-            next.run(request).await
+    // Check X-CSRF-Token header first
+    if let Some(ref token) = get_csrf_header(&request) {
+        if token == &cookie_token {
+            return next.run(request).await;
         }
-        _ => csrf_error("CSRF token mismatch"),
+        return csrf_error("CSRF token mismatch");
+    }
+
+    // For form-urlencoded POSTs, extract the body to read _csrf field
+    let is_form = request
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|ct| ct.starts_with("application/x-www-form-urlencoded"))
+        .unwrap_or(false);
+
+    if is_form {
+        // Consume the body to extract _csrf field
+        let (parts, body) = request.into_parts();
+        let bytes = match axum::body::to_bytes(body, 1024 * 64).await {
+            Ok(b) => b,
+            Err(_) => return csrf_error("Failed to read request body"),
+        };
+
+        let body_str = String::from_utf8_lossy(&bytes);
+        let form_token = form_urlencoded::parse(body_str.as_bytes())
+            .find(|(k, _)| k == "_csrf")
+            .map(|(_, v)| v.into_owned());
+
+        // Reconstruct the request with the consumed body
+        let request = Request::from_parts(parts, Body::from(bytes));
+
+        match form_token {
+            Some(ref token) if token == &cookie_token => next.run(request).await,
+            _ => csrf_error("CSRF token mismatch"),
+        }
+    } else {
+        csrf_error("CSRF token mismatch")
     }
 }
 
@@ -70,21 +99,6 @@ fn get_csrf_header(request: &Request<Body>) -> Option<String> {
         .ok()
         .map(String::from)
 }
-
-fn get_csrf_form_field(request: &Request<Body>) -> Option<String> {
-    // We can only read the _csrf field if it was pre-extracted into extensions
-    // by an earlier body-parsing layer. For form posts the authorize/token
-    // handlers parse the body; this is a best-effort header check.
-    request
-        .extensions()
-        .get::<CsrfFormToken>()
-        .map(|t| t.0.clone())
-}
-
-/// Handlers that parse form bodies should insert this into extensions
-/// before the CSRF middleware runs, or use the X-CSRF-Token header.
-#[derive(Clone)]
-pub struct CsrfFormToken(pub String);
 
 fn set_csrf_cookie(response: &mut Response<Body>, token: &str) {
     let cookie = format!("_csrf={token}; Path=/; HttpOnly; SameSite=Strict; Secure");
