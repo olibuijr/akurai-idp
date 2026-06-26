@@ -5,8 +5,9 @@ pub mod middleware;
 pub mod routes;
 
 use axum::{
+    body::Body,
     extract::Request,
-    http::{header, StatusCode},
+    http::{header, Response, StatusCode},
     middleware as axum_mw,
     response::IntoResponse,
     routing::get,
@@ -16,6 +17,12 @@ use serde_json::json;
 use subtle::ConstantTimeEq;
 
 use crate::middleware::rate_limit::RateLimitState;
+
+// ---------------------------------------------------------------------------
+// Embedded static assets (compiled into the binary via include_bytes!)
+// ---------------------------------------------------------------------------
+const FAVICON_SVG: &[u8] = include_bytes!("../assets/favicon.svg");
+const APPLE_TOUCH_ICON_PNG: &[u8] = include_bytes!("../assets/apple-touch-icon.png");
 
 #[tokio::main]
 async fn main() {
@@ -80,6 +87,9 @@ async fn main() {
         .merge(routes::account::router())
         // Admin API
         .nest("/admin", admin_router)
+        // Static assets
+        .route("/favicon.svg", get(serve_favicon))
+        .route("/apple-touch-icon.png", get(serve_apple_touch_icon))
         // Health check
         .route("/health", get(health))
         // 404 catch-all
@@ -174,6 +184,24 @@ fn ensure_signing_key() {
 
         tracing::info!("signing key generated: kid={kid}");
     }
+}
+
+async fn serve_favicon() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "image/svg+xml")
+        .header(header::CACHE_CONTROL, "public, max-age=86400")
+        .body(Body::from(FAVICON_SVG.to_vec()))
+        .unwrap()
+}
+
+async fn serve_apple_touch_icon() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "image/png")
+        .header(header::CACHE_CONTROL, "public, max-age=86400")
+        .body(Body::from(APPLE_TOUCH_ICON_PNG.to_vec()))
+        .unwrap()
 }
 
 async fn health() -> impl IntoResponse {

@@ -294,9 +294,17 @@ const BASE_STYLES: &str = r#"
 const WORDMARK: &str = r##"
   <a href="/account" class="wordmark" aria-label="AkurAI ID home">
     <svg class="wordmark-icon" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect width="34" height="34" rx="8" fill="#0F172A"/>
-      <path d="M17 8L25 24H9L17 8Z" fill="#FFFFFF" opacity="0.95"/>
-      <path d="M17 14L21 24H13L17 14Z" fill="#0F172A"/>
+      <defs>
+        <linearGradient id="wm-g" x1="0" y1="0" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#67E8F9"/>
+          <stop offset="100%" stop-color="#B7F36B"/>
+        </linearGradient>
+      </defs>
+      <rect width="34" height="34" rx="8" fill="url(#wm-g)"/>
+      <g transform="translate(1,1)">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M13.38 3.23c1.05-2.23 4.19-2.23 5.24 0l11.05 23.62A2.91 2.91 0 0 1 27.03 31h-3.42c-1.17 0-2.22-.7-2.67-1.78l-2.05-4.93h-5.78l-2.05 4.93A2.9 2.9 0 0 1 8.39 31H4.97a2.91 2.91 0 0 1-2.64-4.15L13.38 3.23ZM16 11.17l-5.13 13.1h10.26L16 11.17Z" fill="#071013"/>
+        <path d="M10.38 20.54h11.24a2.23 2.23 0 0 1 0 4.46H10.38a2.23 2.23 0 0 1 0-4.46Z" fill="#071013"/>
+      </g>
     </svg>
     <span class="wordmark-name">AkurAI<span class="wordmark-badge">ID</span></span>
   </a>"##;
@@ -321,6 +329,8 @@ pub fn auth_page(title: &str, body: &str) -> String {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title} — AkurAI ID</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -533,6 +543,8 @@ pub fn account_page(title: &str, body: &str) -> String {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title} — AkurAI ID</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -640,6 +652,8 @@ pub fn console_page_with_styles(title: &str, body: &str, extra_styles: &str) -> 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title} — AkurAI ID</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
