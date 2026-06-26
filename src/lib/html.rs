@@ -328,12 +328,14 @@ pub fn auth_page(title: &str, body: &str) -> String {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>(function(){{try{{var m=document.cookie.match(/(?:^|; )akurai-theme=([^;]*)/);var t=(m?decodeURIComponent(m[1]):null)||localStorage.getItem("akurai-theme");if(!t)t=matchMedia("(prefers-color-scheme: light)").matches?"akurai-light":"akurai";document.documentElement.setAttribute("data-theme",t);}}catch(e){{}}}})()</script>
   <title>{title} — AkurAI ID</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/themes.css" />
   <style>
     {BASE_STYLES}
     body {{
@@ -356,6 +358,7 @@ pub fn auth_page(title: &str, body: &str) -> String {
     .trust-footer {{ margin-top: 2.5rem; }}
     @media (max-width: 480px) {{ .card {{ padding: 2rem 1.5rem; }} }}
   </style>
+  <script type="module" src="/theme.js"></script>
 </head>
 <body>
 <div class="card">
@@ -542,16 +545,19 @@ pub fn account_page(title: &str, body: &str) -> String {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>(function(){{try{{var m=document.cookie.match(/(?:^|; )akurai-theme=([^;]*)/);var t=(m?decodeURIComponent(m[1]):null)||localStorage.getItem("akurai-theme");if(!t)t=matchMedia("(prefers-color-scheme: light)").matches?"akurai-light":"akurai";document.documentElement.setAttribute("data-theme",t);}}catch(e){{}}}})()</script>
   <title>{title} — AkurAI ID</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/themes.css" />
   <style>
     {BASE_STYLES}
     {ACCOUNT_EXTRA_STYLES}
   </style>
+  <script type="module" src="/theme.js"></script>
 </head>
 <body>
 <div class="card">
@@ -645,23 +651,39 @@ pub fn console_page(title: &str, body: &str) -> String {
 }
 
 pub fn console_page_with_styles(title: &str, body: &str, extra_styles: &str) -> String {
+    console_page_with_theme(title, body, extra_styles, None)
+}
+
+pub fn console_page_with_theme(
+    title: &str,
+    body: &str,
+    extra_styles: &str,
+    theme: Option<&str>,
+) -> String {
+    let theme_attr = theme
+        .filter(|theme| !theme.is_empty())
+        .map(|theme| format!(r#" data-theme="{}""#, esc_html(theme)))
+        .unwrap_or_default();
     format!(
         r#"<!DOCTYPE html>
-<html lang="en">
+<html lang="en"{theme_attr}>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>(function(){{try{{var m=document.cookie.match(/(?:^|; )akurai-theme=([^;]*)/);var t=(m?decodeURIComponent(m[1]):null)||localStorage.getItem("akurai-theme");if(!t)t=matchMedia("(prefers-color-scheme: light)").matches?"akurai-light":"akurai";document.documentElement.setAttribute("data-theme",t);}}catch(e){{}}}})()</script>
   <title>{title} — AkurAI ID</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/themes.css" />
   <style>
     {BASE_STYLES}
     {CONSOLE_EXTRA_STYLES}
     {extra_styles}
   </style>
+  <script type="module" src="/theme.js"></script>
 </head>
 <body>
 <main class="console-wrap">
@@ -682,6 +704,7 @@ pub fn console_page_with_styles(title: &str, body: &str, extra_styles: &str) -> 
         BASE_STYLES = BASE_STYLES,
         CONSOLE_EXTRA_STYLES = CONSOLE_EXTRA_STYLES,
         extra_styles = extra_styles,
+        theme_attr = theme_attr,
         WORDMARK = WORDMARK,
         body = body,
     )
