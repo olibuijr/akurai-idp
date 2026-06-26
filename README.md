@@ -35,7 +35,9 @@ CC_x86_64_unknown_linux_musl=musl-gcc cargo build --release --target x86_64-unkn
 
 The dedicated tenant agent host uses the tracked nginx vhost at
 `ops/nginx/agent.olibuijr.com.conf` and proxies `https://agent.olibuijr.com/`
-to the authenticated agent console route.
+to the authenticated agent console route. The auth-domain redirect snippet at
+`ops/nginx/auth-agent-redirect.conf` keeps the old `/agent` URL off
+`auth.olibuijr.com`.
 
 ## Configuration
 
