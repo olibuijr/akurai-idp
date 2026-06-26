@@ -15,6 +15,51 @@ pub fn esc_html(s: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// Locale — resolved from the akurai-lang cookie (default: Icelandic)
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum Locale {
+    Is,
+    En,
+}
+
+impl Locale {
+    /// Parse locale from a raw `Cookie:` header value.
+    /// `akurai-lang=en` → English; anything else / absent → Icelandic (default).
+    pub fn from_cookie_header(cookie_header: Option<&str>) -> Self {
+        if let Some(cookies) = cookie_header {
+            for part in cookies.split(';') {
+                let part = part.trim();
+                if let Some(val) = part.strip_prefix("akurai-lang=") {
+                    if val.trim() == "en" {
+                        return Locale::En;
+                    }
+                }
+            }
+        }
+        Locale::Is
+    }
+
+    /// BCP-47 language tag for `<html lang="...">`.
+    pub fn lang_attr(&self) -> &'static str {
+        match self {
+            Locale::Is => "is",
+            Locale::En => "en",
+        }
+    }
+}
+
+/// Pick between Icelandic and English strings.
+/// Usage: `t(locale, "Skrá inn", "Sign in")`
+pub fn t(locale: Locale, is: &'static str, en: &'static str) -> &'static str {
+    match locale {
+        Locale::Is => is,
+        Locale::En => en,
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Shared design tokens, reset, and component styles
 // ---------------------------------------------------------------------------
 const BASE_STYLES: &str = r#"
@@ -289,6 +334,43 @@ const BASE_STYLES: &str = r#"
     font-size: 0.75rem;
   }
   .trust-footer svg { flex-shrink: 0; }
+
+  /* ── Page top (wordmark row + lang toggle) ── */
+  .page-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+  .page-top .wordmark { margin-bottom: 0; }
+
+  /* ── Lang toggle ── */
+  .lang-toggle {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .lang-opt {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ink-faint);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    padding: 5px 9px;
+    cursor: pointer;
+    line-height: 1;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  .lang-opt + .lang-opt { border-left: 1px solid var(--border); }
+  .lang-opt:hover { color: var(--ink); }
+  .lang-opt.is-active { background: var(--accent); color: #071013; }
+  .lang-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 "#;
 
 const WORDMARK: &str = r##"
@@ -321,10 +403,11 @@ const TRUST_FOOTER: &str = r#"
 
 /// Full HTML page with a centered 420px card for auth flows (login, MFA).
 /// Includes DM Sans font, navy/gold palette, WCAG AAA contrast, and AkurAI ID wordmark.
-pub fn auth_page(title: &str, body: &str) -> String {
+pub fn auth_page(locale: Locale, title: &str, body: &str) -> String {
+    let lang = locale.lang_attr();
     format!(
         r#"<!DOCTYPE html>
-<html lang="en">
+<html lang="{lang}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -359,15 +442,20 @@ pub fn auth_page(title: &str, body: &str) -> String {
     @media (max-width: 480px) {{ .card {{ padding: 2rem 1.5rem; }} }}
   </style>
   <script type="module" src="/theme.js"></script>
+  <script type="module" src="/lang.js"></script>
 </head>
 <body>
 <div class="card">
-  {WORDMARK}
+  <div class="page-top">
+    {WORDMARK}
+    <span data-lang-toggle></span>
+  </div>
   {body}
 </div>
 {TRUST_FOOTER}
 </body>
 </html>"#,
+        lang = lang,
         title = esc_html(title),
         BASE_STYLES = BASE_STYLES,
         WORDMARK = WORDMARK,
@@ -538,10 +626,11 @@ const ACCOUNT_EXTRA_STYLES: &str = r#"
 
 /// Full HTML page with a top-aligned 580px card for account settings pages.
 /// Includes nav, tables, badges CSS on top of the base design system.
-pub fn account_page(title: &str, body: &str) -> String {
+pub fn account_page(locale: Locale, title: &str, body: &str) -> String {
+    let lang = locale.lang_attr();
     format!(
         r#"<!DOCTYPE html>
-<html lang="en">
+<html lang="{lang}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -558,15 +647,20 @@ pub fn account_page(title: &str, body: &str) -> String {
     {ACCOUNT_EXTRA_STYLES}
   </style>
   <script type="module" src="/theme.js"></script>
+  <script type="module" src="/lang.js"></script>
 </head>
 <body>
 <div class="card">
-  {WORDMARK}
+  <div class="page-top">
+    {WORDMARK}
+    <span data-lang-toggle></span>
+  </div>
   {body}
 </div>
 {TRUST_FOOTER}
 </body>
 </html>"#,
+        lang = lang,
         title = esc_html(title),
         BASE_STYLES = BASE_STYLES,
         ACCOUNT_EXTRA_STYLES = ACCOUNT_EXTRA_STYLES,
@@ -732,15 +826,44 @@ mod tests {
 
     #[test]
     fn auth_page_contains_card() {
-        let html = auth_page("Login", "<h1>Login</h1>");
+        let html = auth_page(Locale::Is, "Login", "<h1>Login</h1>");
         assert!(html.contains("max-width: 420px"));
         assert!(html.contains("AkurAI"));
         assert!(html.contains("<h1>Login</h1>"));
     }
 
     #[test]
+    fn auth_page_locale_is() {
+        let html = auth_page(Locale::Is, "Skrá inn", "");
+        assert!(html.contains(r#"<html lang="is""#));
+    }
+
+    #[test]
+    fn auth_page_locale_en() {
+        let html = auth_page(Locale::En, "Sign in", "");
+        assert!(html.contains(r#"<html lang="en""#));
+    }
+
+    #[test]
+    fn locale_from_cookie_header() {
+        assert_eq!(Locale::from_cookie_header(None).lang_attr(), "is");
+        assert_eq!(
+            Locale::from_cookie_header(Some("foo=bar")).lang_attr(),
+            "is"
+        );
+        assert_eq!(
+            Locale::from_cookie_header(Some("akurai-lang=en")).lang_attr(),
+            "en"
+        );
+        assert_eq!(
+            Locale::from_cookie_header(Some("x=1; akurai-lang=en; y=2")).lang_attr(),
+            "en"
+        );
+    }
+
+    #[test]
     fn account_page_contains_wider_card() {
-        let html = account_page("Settings", "<h1>Settings</h1>");
+        let html = account_page(Locale::Is, "Settings", "<h1>Settings</h1>");
         assert!(html.contains("max-width: 580px"));
         assert!(html.contains("account-nav"));
     }

@@ -25,6 +25,7 @@ const FAVICON_SVG: &[u8] = include_bytes!("../assets/favicon.svg");
 const APPLE_TOUCH_ICON_PNG: &[u8] = include_bytes!("../assets/apple-touch-icon.png");
 const THEME_JS: &[u8] = include_bytes!("../assets/theme.js");
 const THEMES_CSS: &[u8] = include_bytes!("../assets/themes.css");
+const LANG_JS: &[u8] = include_bytes!("../assets/lang.js");
 
 #[tokio::main]
 async fn main() {
@@ -94,6 +95,7 @@ async fn main() {
         .route("/apple-touch-icon.png", get(serve_apple_touch_icon))
         .route("/theme.js", get(serve_theme_js))
         .route("/themes.css", get(serve_themes_css))
+        .route("/lang.js", get(serve_lang_js))
         // Health check
         .route("/health", get(health))
         // 404 catch-all
@@ -223,6 +225,15 @@ async fn serve_themes_css() -> Response<Body> {
         .header(header::CONTENT_TYPE, "text/css; charset=utf-8")
         .header(header::CACHE_CONTROL, "public, max-age=3600")
         .body(Body::from(THEMES_CSS.to_vec()))
+        .unwrap()
+}
+
+async fn serve_lang_js() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/javascript; charset=utf-8")
+        .header(header::CACHE_CONTROL, "public, max-age=3600")
+        .body(Body::from(LANG_JS.to_vec()))
         .unwrap()
 }
 

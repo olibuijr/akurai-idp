@@ -1,9 +1,9 @@
 use axum::{
+    Form, Router,
     extract::Path,
-    http::{header, HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode, header},
     response::{Html, IntoResponse, Response},
     routing::{get, post},
-    Form, Router,
 };
 use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -11,20 +11,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config;
 use crate::db::with_db;
 use crate::lib::audit::{
-    log_audit_event, SESSION_REVOKED, USER_MFA_DISABLED, USER_MFA_ENABLED,
-    USER_PASSWORD_CHANGED,
+    SESSION_REVOKED, USER_MFA_DISABLED, USER_MFA_ENABLED, USER_PASSWORD_CHANGED, log_audit_event,
 };
 use crate::lib::crypto::{generate_secure_token, sha256};
-use crate::lib::html::{account_page, esc_html};
+use crate::lib::html::{Locale, account_page, esc_html, t};
 use crate::lib::password::{hash_password, verify_password};
 use crate::lib::totp::{generate_backup_codes, generate_totp_secret, verify_totp};
 
 pub fn router() -> Router {
     Router::new()
         .route("/account", get(account_overview))
-        .route("/account/password", get(password_page).post(password_submit))
+        .route(
+            "/account/password",
+            get(password_page).post(password_submit),
+        )
         .route("/account/mfa", get(mfa_status))
-        .route("/account/mfa/setup", get(mfa_setup_page).post(mfa_setup_submit))
+        .route(
+            "/account/mfa/setup",
+            get(mfa_setup_page).post(mfa_setup_submit),
+        )
         .route("/account/mfa/disable", post(mfa_disable))
         .route("/account/sessions", get(sessions_page))
         .route("/account/sessions/{id}/revoke", post(session_revoke))
@@ -109,6 +114,7 @@ async fn account_overview(headers: HeaderMap) -> Response {
         Ok(u) => u,
         Err(r) => return r,
     };
+    let locale = locale_from_headers(&headers);
 
     let (mfa_enabled, session_count, tenant_name) = with_db(|conn| {
         let mfa: bool = conn
@@ -139,37 +145,55 @@ async fn account_overview(headers: HeaderMap) -> Response {
         (mfa, sessions, tenant)
     });
 
+    let lbl_enabled = t(locale, "Virkt", "Enabled");
+    let lbl_disabled = t(locale, "Óvirkt", "Disabled");
     let mfa_badge = if mfa_enabled {
-        r#"<span class="badge badge-ok">Enabled</span>"#
+        format!(r#"<span class="badge badge-ok">{lbl_enabled}</span>"#)
     } else {
-        r#"<span class="badge badge-warn">Disabled</span>"#
+        format!(r#"<span class="badge badge-warn">{lbl_disabled}</span>"#)
     };
 
     let agent_url = &config::get().agent_public_url;
     let body = format!(
-        r#"<h2>Account overview</h2>
+        r#"<h2>{h_overview}</h2>
 <dl>
-  <dt>Email</dt><dd>{email}</dd>
-  <dt>Tenant</dt><dd>{tenant}</dd>
-  <dt>Two-factor auth</dt><dd>{mfa_badge}</dd>
-  <dt>Active sessions</dt><dd>{sessions}</dd>
+  <dt>{lbl_email}</dt><dd>{email}</dd>
+  <dt>{lbl_tenant}</dt><dd>{tenant}</dd>
+  <dt>{lbl_mfa}</dt><dd>{mfa_badge}</dd>
+  <dt>{lbl_sessions}</dt><dd>{sessions}</dd>
 </dl>
 <nav>
   <ul>
-    <li><a href="/account/password">Change password</a></li>
-    <li><a href="/account/mfa">Two-factor authentication</a></li>
-    <li><a href="/account/sessions">Active sessions</a></li>
-    <li><a href="{agent_url}">Agent console</a></li>
-    <li><a href="/logout">Sign out</a></li>
+    <li><a href="/account/password">{lbl_change_pw}</a></li>
+    <li><a href="/account/mfa">{lbl_2fa}</a></li>
+    <li><a href="/account/sessions">{lbl_active_sessions}</a></li>
+    <li><a href="{agent_url}">{lbl_agent}</a></li>
+    <li><a href="/logout">{lbl_signout}</a></li>
   </ul>
 </nav>"#,
+        h_overview = t(locale, "Yfirlit reiknings", "Account overview"),
+        lbl_email = t(locale, "Netfang", "Email"),
+        lbl_tenant = t(locale, "Leigjandi", "Tenant"),
+        lbl_mfa = t(locale, "Tvíþátta auðkenning", "Two-factor auth"),
+        lbl_sessions = t(locale, "Virkar lotur", "Active sessions"),
+        lbl_change_pw = t(locale, "Breyta lykilorði", "Change password"),
+        lbl_2fa = t(locale, "Tvíþátta auðkenning", "Two-factor authentication"),
+        lbl_active_sessions = t(locale, "Virkar lotur", "Active sessions"),
+        lbl_agent = t(locale, "Stjórnborð fulltrúa", "Agent console"),
+        lbl_signout = t(locale, "Skrá út", "Sign out"),
         email = esc_html(&user.email),
         tenant = esc_html(&tenant_name),
         sessions = session_count,
+        mfa_badge = mfa_badge,
         agent_url = esc_html(agent_url),
     );
 
-    Html(account_page("Account", &body)).into_response()
+    Html(account_page(
+        locale,
+        t(locale, "Reikningur", "Account"),
+        &body,
+    ))
+    .into_response()
 }
 
 // ---------------------------------------------------------------------------
@@ -181,25 +205,32 @@ async fn password_page(headers: HeaderMap) -> Response {
         Ok(u) => u,
         Err(r) => return r,
     };
+    let locale = locale_from_headers(&headers);
 
     let csrf = get_csrf_cookie(&headers).unwrap_or_default();
     let _ = user; // session verified
 
+    let page_title = t(locale, "Breyta lykilorði", "Change password");
     let body = format!(
-        r#"<h2>Change password</h2>
+        r#"<h2>{page_title}</h2>
 <form method="post" action="/account/password">
   <input type="hidden" name="_csrf" value="{csrf}">
-  <label for="current_password">Current password</label>
+  <label for="current_password">{lbl_current}</label>
   <input type="password" id="current_password" name="current_password" required>
-  <label for="new_password">New password</label>
+  <label for="new_password">{lbl_new}</label>
   <input type="password" id="new_password" name="new_password" required minlength="8">
-  <button type="submit">Change password</button>
+  <button type="submit">{lbl_submit}</button>
 </form>
-<p><a href="/account">Back to account</a></p>"#,
+<p><a href="/account">{lbl_back}</a></p>"#,
+        page_title = page_title,
         csrf = esc_html(&csrf),
+        lbl_current = t(locale, "Núverandi lykilorð", "Current password"),
+        lbl_new = t(locale, "Nýtt lykilorð", "New password"),
+        lbl_submit = t(locale, "Breyta lykilorði", "Change password"),
+        lbl_back = t(locale, "Aftur í reikning", "Back to account"),
     );
 
-    Html(account_page("Change password", &body)).into_response()
+    Html(account_page(locale, page_title, &body)).into_response()
 }
 
 // ---------------------------------------------------------------------------
@@ -211,16 +242,21 @@ async fn password_submit(headers: HeaderMap, Form(form): Form<PasswordForm>) -> 
         Ok(u) => u,
         Err(r) => return r,
     };
+    let locale = locale_from_headers(&headers);
 
     let current = form.current_password.as_deref().unwrap_or("");
     let new_pw = form.new_password.as_deref().unwrap_or("");
     let ip = extract_ip(&headers);
 
     if current.is_empty() || new_pw.is_empty() {
-        return account_error("Change password", "All fields are required.");
+        return account_error(locale, "Change password", "All fields are required.");
     }
     if new_pw.len() < 8 {
-        return account_error("Change password", "New password must be at least 8 characters.");
+        return account_error(
+            locale,
+            "Change password",
+            "New password must be at least 8 characters.",
+        );
     }
 
     // Load current hash
@@ -235,21 +271,25 @@ async fn password_submit(headers: HeaderMap, Form(form): Form<PasswordForm>) -> 
 
     let stored_hash = match stored_hash {
         Some(h) => h,
-        None => return account_error("Change password", "User not found."),
+        None => return account_error(locale, "Change password", "User not found."),
     };
 
     if !verify_password(&stored_hash, current).unwrap_or(false) {
-        return account_error("Change password", "Current password is incorrect.");
+        return account_error(locale, "Change password", "Current password is incorrect.");
     }
 
     // Check new != old
     if verify_password(&stored_hash, new_pw).unwrap_or(false) {
-        return account_error("Change password", "New password must be different from current.");
+        return account_error(
+            locale,
+            "Change password",
+            "New password must be different from current.",
+        );
     }
 
     let new_hash = match hash_password(new_pw) {
         Ok(h) => h,
-        Err(_) => return account_error("Change password", "Failed to hash password."),
+        Err(_) => return account_error(locale, "Change password", "Failed to hash password."),
     };
 
     with_db(|conn| {
@@ -268,11 +308,21 @@ async fn password_submit(headers: HeaderMap, Form(form): Form<PasswordForm>) -> 
         );
     });
 
-    let body = r#"<h2>Change password</h2>
-<div class="success">Password changed successfully.</div>
-<p><a href="/account">Back to account</a></p>"#;
+    let page_title = t(locale, "Breyta lykilorði", "Change password");
+    let body = format!(
+        r#"<h2>{page_title}</h2>
+<div class="success">{lbl_success}</div>
+<p><a href="/account">{lbl_back}</a></p>"#,
+        page_title = page_title,
+        lbl_success = t(
+            locale,
+            "Lykilorði hefur verið breytt.",
+            "Password changed successfully."
+        ),
+        lbl_back = t(locale, "Aftur í reikning", "Back to account"),
+    );
 
-    Html(account_page("Change password", body)).into_response()
+    Html(account_page(locale, page_title, &body)).into_response()
 }
 
 // ---------------------------------------------------------------------------
@@ -284,6 +334,7 @@ async fn mfa_status(headers: HeaderMap) -> Response {
         Ok(u) => u,
         Err(r) => return r,
     };
+    let locale = locale_from_headers(&headers);
 
     let mfa_enabled = with_db(|conn| {
         conn.query_row(
@@ -296,29 +347,60 @@ async fn mfa_status(headers: HeaderMap) -> Response {
     });
 
     let csrf = get_csrf_cookie(&headers).unwrap_or_default();
+    let page_title = t(locale, "Tvíþátta auðkenning", "Two-factor authentication");
 
     let body = if mfa_enabled {
         format!(
-            r#"<h2>Two-factor authentication</h2>
-<p>Two-factor authentication is <strong>enabled</strong>.</p>
+            r#"<h2>{page_title}</h2>
+<p>{lbl_is_enabled}</p>
 <form method="post" action="/account/mfa/disable">
   <input type="hidden" name="_csrf" value="{csrf}">
-  <label for="password">Confirm your password to disable</label>
+  <label for="password">{lbl_confirm_pw}</label>
   <input type="password" id="password" name="password" required>
-  <button type="submit" class="danger">Disable two-factor auth</button>
+  <button type="submit" class="danger">{lbl_disable}</button>
 </form>
-<p><a href="/account">Back to account</a></p>"#,
+<p><a href="/account">{lbl_back}</a></p>"#,
+            page_title = page_title,
             csrf = esc_html(&csrf),
+            lbl_is_enabled = t(
+                locale,
+                "Tvíþátta auðkenning er <strong>virk</strong>.",
+                "Two-factor authentication is <strong>enabled</strong>."
+            ),
+            lbl_confirm_pw = t(
+                locale,
+                "Staðfestu lykilorðið þitt til að afvirkja",
+                "Confirm your password to disable"
+            ),
+            lbl_disable = t(
+                locale,
+                "Afvirkja tvíþátta auðkenningu",
+                "Disable two-factor auth"
+            ),
+            lbl_back = t(locale, "Aftur í reikning", "Back to account"),
         )
     } else {
-        r#"<h2>Two-factor authentication</h2>
-<p>Two-factor authentication is <strong>not enabled</strong>.</p>
-<p><a href="/account/mfa/setup">Set up two-factor authentication</a></p>
-<p><a href="/account">Back to account</a></p>"#
-            .to_string()
+        format!(
+            r#"<h2>{page_title}</h2>
+<p>{lbl_not_enabled}</p>
+<p><a href="/account/mfa/setup">{lbl_setup}</a></p>
+<p><a href="/account">{lbl_back}</a></p>"#,
+            page_title = page_title,
+            lbl_not_enabled = t(
+                locale,
+                "Tvíþátta auðkenning er <strong>ekki virk</strong>.",
+                "Two-factor authentication is <strong>not enabled</strong>."
+            ),
+            lbl_setup = t(
+                locale,
+                "Setja upp tvíþátta auðkenningu",
+                "Set up two-factor authentication"
+            ),
+            lbl_back = t(locale, "Aftur í reikning", "Back to account"),
+        )
     };
 
-    Html(account_page("Two-factor authentication", &body)).into_response()
+    Html(account_page(locale, page_title, &body)).into_response()
 }
 
 // ---------------------------------------------------------------------------
@@ -330,29 +412,49 @@ async fn mfa_setup_page(headers: HeaderMap) -> Response {
         Ok(u) => u,
         Err(r) => return r,
     };
+    let locale =
+        Locale::from_cookie_header(headers.get(header::COOKIE).and_then(|v| v.to_str().ok()));
 
     let csrf = get_csrf_cookie(&headers).unwrap_or_default();
     let (secret, otpauth_uri) = generate_totp_secret(&user.email, "AkurAI");
 
+    let page_title = t(locale, "Setja upp 2FA", "Set up 2FA");
     let body = format!(
-        r#"<h2>Set up two-factor authentication</h2>
-<p>Scan this code with your authenticator app, or enter the key manually:</p>
+        r#"<h2>{h_setup}</h2>
+<p>{lbl_scan}</p>
 <p class="mono"><code>{secret}</code></p>
 <p class="small">otpauth URI: <code>{uri}</code></p>
 <form method="post" action="/account/mfa/setup">
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="secret" value="{secret}">
-  <label for="code">Enter verification code</label>
+  <label for="code">{lbl_code}</label>
   <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]{{6}}" autocomplete="one-time-code" required autofocus>
-  <button type="submit">Verify and enable</button>
+  <button type="submit">{lbl_verify}</button>
 </form>
-<p><a href="/account/mfa">Cancel</a></p>"#,
+<p><a href="/account/mfa">{lbl_cancel}</a></p>"#,
+        h_setup = t(
+            locale,
+            "Setja upp tvíþátta auðkenningu",
+            "Set up two-factor authentication"
+        ),
+        lbl_scan = t(
+            locale,
+            "Skannaðu þennan kóða með auðkenningarforritinu þínu, eða sláðu inn lykilinn handvirkt:",
+            "Scan this code with your authenticator app, or enter the key manually:"
+        ),
+        lbl_code = t(
+            locale,
+            "Sláðu inn staðfestingarkóða",
+            "Enter verification code"
+        ),
+        lbl_verify = t(locale, "Staðfesta og virkja", "Verify and enable"),
+        lbl_cancel = t(locale, "Hætta við", "Cancel"),
         csrf = esc_html(&csrf),
         secret = esc_html(&secret),
         uri = esc_html(&otpauth_uri),
     );
 
-    Html(account_page("Set up 2FA", &body)).into_response()
+    Html(account_page(locale, page_title, &body)).into_response()
 }
 
 // ---------------------------------------------------------------------------
@@ -364,19 +466,24 @@ async fn mfa_setup_submit(headers: HeaderMap, Form(form): Form<MfaSetupForm>) ->
         Ok(u) => u,
         Err(r) => return r,
     };
+    let locale = locale_from_headers(&headers);
 
     let code = form.code.as_deref().unwrap_or("").trim().to_string();
     let secret = form.secret.as_deref().unwrap_or("").trim().to_string();
     let ip = extract_ip(&headers);
 
     if code.is_empty() || secret.is_empty() {
-        return account_error("Set up 2FA", "Code and secret are required.");
+        return account_error(locale, "Set up 2FA", "Code and secret are required.");
     }
 
     // Verify the code against the provided secret (±1 window configured in totp module)
     let valid = verify_totp(&secret, &code);
     if !valid {
-        return account_error("Set up 2FA", "Invalid verification code. Please try again.");
+        return account_error(
+            locale,
+            "Set up 2FA",
+            "Invalid verification code. Please try again.",
+        );
     }
 
     // Save MFA secret and enable MFA
@@ -423,18 +530,42 @@ async fn mfa_setup_submit(headers: HeaderMap, Form(form): Form<MfaSetupForm>) ->
             .collect::<Vec<_>>()
             .join("\n");
 
+        let page_title = t(locale, "2FA virkt", "2FA enabled");
         let body = format!(
-            r#"<h2>Two-factor authentication enabled</h2>
-<div class="success">Two-factor authentication has been enabled.</div>
-<h3>Backup codes</h3>
-<p><strong>Save these codes somewhere safe.</strong> Each can be used once if you lose your authenticator.</p>
+            r#"<h2>{h_enabled}</h2>
+<div class="success">{lbl_success}</div>
+<h3>{h_backup}</h3>
+<p><strong>{lbl_save}</strong> {lbl_each}</p>
 <ul class="backup-codes">
 {codes_html}
 </ul>
-<p><a href="/account">Back to account</a></p>"#,
+<p><a href="/account">{lbl_back}</a></p>"#,
+            h_enabled = t(
+                locale,
+                "Tvíþátta auðkenning virk",
+                "Two-factor authentication enabled"
+            ),
+            lbl_success = t(
+                locale,
+                "Tvíþátta auðkenning hefur verið virkjuð.",
+                "Two-factor authentication has been enabled."
+            ),
+            h_backup = t(locale, "Varakóðar", "Backup codes"),
+            lbl_save = t(
+                locale,
+                "Vistaðu þessa kóða á öruggum stað.",
+                "Save these codes somewhere safe."
+            ),
+            lbl_each = t(
+                locale,
+                "Hægt er að nota hvern eitt sinni ef þú missir auðkenningartækið.",
+                "Each can be used once if you lose your authenticator."
+            ),
+            lbl_back = t(locale, "Aftur í reikning", "Back to account"),
+            codes_html = codes_html,
         );
 
-        Html(account_page("2FA enabled", &body)).into_response()
+        Html(account_page(locale, page_title, &body)).into_response()
     })
 }
 
@@ -447,12 +578,13 @@ async fn mfa_disable(headers: HeaderMap, Form(form): Form<MfaDisableForm>) -> Re
         Ok(u) => u,
         Err(r) => return r,
     };
+    let locale = locale_from_headers(&headers);
 
     let password = form.password.as_deref().unwrap_or("");
     let ip = extract_ip(&headers);
 
     if password.is_empty() {
-        return account_error("Two-factor authentication", "Password is required.");
+        return account_error(locale, "Two-factor authentication", "Password is required.");
     }
 
     // Verify current password
@@ -467,11 +599,15 @@ async fn mfa_disable(headers: HeaderMap, Form(form): Form<MfaDisableForm>) -> Re
 
     let stored_hash = match stored_hash {
         Some(h) => h,
-        None => return account_error("Two-factor authentication", "User not found."),
+        None => return account_error(locale, "Two-factor authentication", "User not found."),
     };
 
     if !verify_password(&stored_hash, password).unwrap_or(false) {
-        return account_error("Two-factor authentication", "Password is incorrect.");
+        return account_error(
+            locale,
+            "Two-factor authentication",
+            "Password is incorrect.",
+        );
     }
 
     with_db(|conn| {
@@ -497,11 +633,21 @@ async fn mfa_disable(headers: HeaderMap, Form(form): Form<MfaDisableForm>) -> Re
         );
     });
 
-    let body = r#"<h2>Two-factor authentication</h2>
-<div class="success">Two-factor authentication has been disabled.</div>
-<p><a href="/account">Back to account</a></p>"#;
+    let page_title = t(locale, "Tvíþátta auðkenning", "Two-factor authentication");
+    let body = format!(
+        r#"<h2>{page_title}</h2>
+<div class="success">{lbl_disabled}</div>
+<p><a href="/account">{lbl_back}</a></p>"#,
+        page_title = page_title,
+        lbl_disabled = t(
+            locale,
+            "Tvíþátta auðkenning hefur verið afvirkjuð.",
+            "Two-factor authentication has been disabled."
+        ),
+        lbl_back = t(locale, "Aftur í reikning", "Back to account"),
+    );
 
-    Html(account_page("Two-factor authentication", body)).into_response()
+    Html(account_page(locale, page_title, &body)).into_response()
 }
 
 // ---------------------------------------------------------------------------
@@ -513,6 +659,7 @@ async fn sessions_page(headers: HeaderMap) -> Response {
         Ok(u) => u,
         Err(r) => return r,
     };
+    let locale = locale_from_headers(&headers);
 
     let csrf = get_csrf_cookie(&headers).unwrap_or_default();
     let now = now_epoch();
@@ -542,6 +689,9 @@ async fn sessions_page(headers: HeaderMap) -> Response {
         rows
     });
 
+    let lbl_current = t(locale, " (núverandi)", " (current)");
+    let lbl_revoke = t(locale, "Afturkalla", "Revoke");
+
     let mut rows_html = String::new();
     for s in &sessions {
         let is_current = s.id == user.session_id;
@@ -550,17 +700,18 @@ async fn sessions_page(headers: HeaderMap) -> Response {
         } else {
             s.id.clone()
         };
-        let current_label = if is_current { " (current)" } else { "" };
+        let current_label = if is_current { lbl_current } else { "" };
         let revoke_btn = if is_current {
             String::new()
         } else {
             format!(
                 r#"<form method="post" action="/account/sessions/{id}/revoke" style="display:inline">
   <input type="hidden" name="_csrf" value="{csrf}">
-  <button type="submit" class="small danger">Revoke</button>
+  <button type="submit" class="small danger">{lbl}</button>
 </form>"#,
                 id = esc_html(&s.id),
                 csrf = esc_html(&csrf),
+                lbl = lbl_revoke,
             )
         };
 
@@ -579,18 +730,21 @@ async fn sessions_page(headers: HeaderMap) -> Response {
                 ""
             },
             id_display = esc_html(&id_display),
+            current_label = current_label,
             ip = esc_html(&s.ip),
             ua = esc_html(&truncate_ua(&s.user_agent)),
             created = format_epoch(s.created_at),
             expires = format_epoch(s.expires_at),
+            revoke_btn = revoke_btn,
         ));
     }
 
+    let page_title = t(locale, "Virkar lotur", "Active sessions");
     let body = format!(
-        r#"<h2>Active sessions</h2>
+        r#"<h2>{page_title}</h2>
 <table>
   <thead>
-    <tr><th>ID</th><th>IP</th><th>User agent</th><th>Created</th><th>Expires</th><th></th></tr>
+    <tr><th>{th_id}</th><th>{th_ip}</th><th>{th_ua}</th><th>{th_created}</th><th>{th_expires}</th><th></th></tr>
   </thead>
   <tbody>
     {rows_html}
@@ -598,23 +752,33 @@ async fn sessions_page(headers: HeaderMap) -> Response {
 </table>
 <form method="post" action="/account/sessions/revoke-all">
   <input type="hidden" name="_csrf" value="{csrf}">
-  <button type="submit" class="danger">Revoke all other sessions</button>
+  <button type="submit" class="danger">{lbl_revoke_all}</button>
 </form>
-<p><a href="/account">Back to account</a></p>"#,
+<p><a href="/account">{lbl_back}</a></p>"#,
+        page_title = page_title,
+        th_id = t(locale, "Auðkenni", "ID"),
+        th_ip = t(locale, "IP-tala", "IP"),
+        th_ua = t(locale, "Notendaforrit", "User agent"),
+        th_created = t(locale, "Stofnað", "Created"),
+        th_expires = t(locale, "Rennur út", "Expires"),
+        lbl_revoke_all = t(
+            locale,
+            "Afturkalla allar aðrar lotur",
+            "Revoke all other sessions"
+        ),
+        lbl_back = t(locale, "Aftur í reikning", "Back to account"),
         csrf = esc_html(&csrf),
+        rows_html = rows_html,
     );
 
-    Html(account_page("Active sessions", &body)).into_response()
+    Html(account_page(locale, page_title, &body)).into_response()
 }
 
 // ---------------------------------------------------------------------------
 // POST /account/sessions/:id/revoke
 // ---------------------------------------------------------------------------
 
-async fn session_revoke(
-    headers: HeaderMap,
-    Path(target_id): Path<String>,
-) -> Response {
+async fn session_revoke(headers: HeaderMap, Path(target_id): Path<String>) -> Response {
     let user = match require_session(&headers) {
         Ok(u) => u,
         Err(r) => return r,
@@ -732,33 +896,28 @@ fn extract_ip(headers: &HeaderMap) -> String {
 }
 
 fn redirect(path: &str) -> Response {
-    (StatusCode::SEE_OTHER, [(header::LOCATION, path.to_string())]).into_response()
+    (
+        StatusCode::SEE_OTHER,
+        [(header::LOCATION, path.to_string())],
+    )
+        .into_response()
 }
 
-fn account_error(title: &str, message: &str) -> Response {
+fn locale_from_headers(headers: &HeaderMap) -> Locale {
+    Locale::from_cookie_header(headers.get(header::COOKIE).and_then(|v| v.to_str().ok()))
+}
+
+fn account_error(locale: Locale, title: &str, message: &str) -> Response {
+    let lbl_back = t(locale, "Aftur í reikning", "Back to account");
     let body = format!(
         r#"<h2>{title}</h2>
 <div class="error">{message}</div>
-<p><a href="/account">Back to account</a></p>"#,
+<p><a href="/account">{lbl_back}</a></p>"#,
         title = esc_html(title),
         message = esc_html(message),
+        lbl_back = lbl_back,
     );
-    Html(account_page(title, &body)).into_response()
-}
-
-fn urlencoded(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for b in s.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char);
-            }
-            _ => {
-                out.push_str(&format!("%{:02X}", b));
-            }
-        }
-    }
-    out
+    Html(account_page(locale, title, &body)).into_response()
 }
 
 fn truncate_ua(ua: &str) -> String {

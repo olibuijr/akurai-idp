@@ -1,9 +1,9 @@
 use axum::{
+    Form, Router,
     extract::Query,
-    http::{header, HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode, header},
     response::{Html, IntoResponse, Response},
     routing::get,
-    Form, Router,
 };
 use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -11,10 +11,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config;
 use crate::db::with_db;
 use crate::lib::audit::{
-    log_audit_event, SESSION_CREATED, USER_LOCKED, USER_LOGIN, USER_LOGIN_FAILED,
+    SESSION_CREATED, USER_LOCKED, USER_LOGIN, USER_LOGIN_FAILED, log_audit_event,
 };
 use crate::lib::crypto::{generate_secure_token, sha256};
-use crate::lib::html::{auth_page, esc_html};
+use crate::lib::html::{Locale, auth_page, esc_html, t};
 use crate::lib::password::verify_password;
 use crate::lib::totp::verify_totp;
 
@@ -54,32 +54,39 @@ struct MfaForm {
 // ---------------------------------------------------------------------------
 
 async fn login_page(Query(q): Query<LoginQuery>, headers: HeaderMap) -> impl IntoResponse {
+    let locale =
+        Locale::from_cookie_header(headers.get(header::COOKIE).and_then(|v| v.to_str().ok()));
     let csrf = get_csrf_cookie(&headers).unwrap_or_default();
     let return_to = q.return_to.as_deref().unwrap_or("");
     let error_html = match &q.error {
-        Some(msg) => format!(
-            r#"<div class="error">{}</div>"#,
-            esc_html(msg)
-        ),
+        Some(msg) => format!(r#"<div class="error">{}</div>"#, esc_html(msg)),
         None => String::new(),
     };
+
+    let lbl_email = t(locale, "Netfang", "Email");
+    let lbl_password = t(locale, "Lykilorð", "Password");
+    let lbl_submit = t(locale, "Skrá inn", "Sign in");
+    let page_title = t(locale, "Skrá inn", "Sign in");
 
     let body = format!(
         r#"{error_html}
 <form method="post" action="/login">
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="return_to" value="{return_to}">
-  <label for="email">Email</label>
+  <label for="email">{lbl_email}</label>
   <input type="email" id="email" name="email" required autofocus>
-  <label for="password">Password</label>
+  <label for="password">{lbl_password}</label>
   <input type="password" id="password" name="password" required>
-  <button type="submit">Sign in</button>
+  <button type="submit">{lbl_submit}</button>
 </form>"#,
         csrf = esc_html(&csrf),
         return_to = esc_html(return_to),
+        lbl_email = lbl_email,
+        lbl_password = lbl_password,
+        lbl_submit = lbl_submit,
     );
 
-    Html(auth_page("Sign in", &body))
+    Html(auth_page(locale, page_title, &body))
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +107,7 @@ async fn login_submit(headers: HeaderMap, Form(form): Form<LoginForm>) -> Respon
     let user = with_db(|conn| {
         let mut stmt = conn
             .prepare(
-                "SELECT id, tenant_id, email, password_hash, mfa_enabled, mfa_secret,
+                "SELECT id, tenant_id, password_hash, mfa_enabled,
                         locked_until, failed_attempts
                  FROM users WHERE LOWER(email) = ?1 LIMIT 1",
             )
@@ -109,12 +116,10 @@ async fn login_submit(headers: HeaderMap, Form(form): Form<LoginForm>) -> Respon
             Ok(UserRow {
                 id: row.get(0)?,
                 tenant_id: row.get(1)?,
-                email: row.get(2)?,
-                password_hash: row.get(3)?,
-                mfa_enabled: row.get::<_, i64>(4)? != 0,
-                mfa_secret: row.get(5)?,
-                locked_until: row.get(6)?,
-                failed_attempts: row.get::<_, i64>(7)?,
+                password_hash: row.get(2)?,
+                mfa_enabled: row.get::<_, i64>(3)? != 0,
+                locked_until: row.get(4)?,
+                failed_attempts: row.get::<_, i64>(5)?,
             })
         })
         .ok()
@@ -149,7 +154,14 @@ async fn login_submit(headers: HeaderMap, Form(form): Form<LoginForm>) -> Respon
                     rusqlite::params![new_attempts, lock_until, now, user.id],
                 )
                 .ok();
-                log_audit_event(conn, Some(&user.tenant_id), Some(&user.id), USER_LOCKED, Some(&ip), None);
+                log_audit_event(
+                    conn,
+                    Some(&user.tenant_id),
+                    Some(&user.id),
+                    USER_LOCKED,
+                    Some(&ip),
+                    None,
+                );
             } else {
                 conn.execute(
                     "UPDATE users SET failed_attempts = ?1, updated_at = ?2 WHERE id = ?3",
@@ -157,7 +169,14 @@ async fn login_submit(headers: HeaderMap, Form(form): Form<LoginForm>) -> Respon
                 )
                 .ok();
             }
-            log_audit_event(conn, Some(&user.tenant_id), Some(&user.id), USER_LOGIN_FAILED, Some(&ip), None);
+            log_audit_event(
+                conn,
+                Some(&user.tenant_id),
+                Some(&user.id),
+                USER_LOGIN_FAILED,
+                Some(&ip),
+                None,
+            );
         });
         return login_redirect("Invalid email or password", &return_to);
     }
@@ -190,7 +209,13 @@ async fn login_submit(headers: HeaderMap, Form(form): Form<LoginForm>) -> Respon
     }
 
     // No MFA — create session directly
-    create_session_response(&user.id, &user.tenant_id, &ip, &extract_ua(&headers), &return_to)
+    create_session_response(
+        &user.id,
+        &user.tenant_id,
+        &ip,
+        &extract_ua(&headers),
+        &return_to,
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -198,25 +223,39 @@ async fn login_submit(headers: HeaderMap, Form(form): Form<LoginForm>) -> Respon
 // ---------------------------------------------------------------------------
 
 async fn mfa_page(Query(q): Query<LoginQuery>, headers: HeaderMap) -> impl IntoResponse {
+    let locale =
+        Locale::from_cookie_header(headers.get(header::COOKIE).and_then(|v| v.to_str().ok()));
     let csrf = get_csrf_cookie(&headers).unwrap_or_default();
     let error_html = match &q.error {
         Some(msg) => format!(r#"<div class="error">{}</div>"#, esc_html(msg)),
         None => String::new(),
     };
 
+    let lbl_code = t(locale, "Auðkenniskóði", "Authentication code");
+    let lbl_hint = t(
+        locale,
+        "Sláðu inn 6 stafa auðkenniskóðann þinn eða varakóða.",
+        "Enter your 6-digit authenticator code or a backup code.",
+    );
+    let lbl_submit = t(locale, "Staðfesta", "Verify");
+    let page_title = t(locale, "Tvíþátta auðkenning", "Two-factor authentication");
+
     let body = format!(
         r#"{error_html}
 <form method="post" action="/mfa">
   <input type="hidden" name="_csrf" value="{csrf}">
-  <label for="code">Authentication code</label>
+  <label for="code">{lbl_code}</label>
   <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required autofocus>
-  <p class="hint">Enter your 6-digit authenticator code or a backup code.</p>
-  <button type="submit">Verify</button>
+  <p class="hint">{lbl_hint}</p>
+  <button type="submit">{lbl_submit}</button>
 </form>"#,
         csrf = esc_html(&csrf),
+        lbl_code = lbl_code,
+        lbl_hint = lbl_hint,
+        lbl_submit = lbl_submit,
     );
 
-    Html(auth_page("Two-factor authentication", &body))
+    Html(auth_page(locale, page_title, &body))
 }
 
 // ---------------------------------------------------------------------------
@@ -282,9 +321,11 @@ async fn mfa_submit(headers: HeaderMap, Form(form): Form<MfaForm>) -> Response {
 
         if !backup_ok {
             // Clear the pending cookie on repeated failure? No — let them retry within the 5 min window.
-            let redirect = format!("/mfa?error={}", urlencoded("Invalid code. Please try again."));
-            return (StatusCode::SEE_OTHER, [(header::LOCATION, redirect)])
-                .into_response();
+            let redirect = format!(
+                "/mfa?error={}",
+                urlencoded("Invalid code. Please try again.")
+            );
+            return (StatusCode::SEE_OTHER, [(header::LOCATION, redirect)]).into_response();
         }
     }
 
@@ -294,10 +335,8 @@ async fn mfa_submit(headers: HeaderMap, Form(form): Form<MfaForm>) -> Response {
     let return_to = safe_return_to(None);
     let mut resp =
         create_session_response(&uid, &tenant_id, &ip, &extract_ua(&headers), &return_to);
-    resp.headers_mut().append(
-        header::SET_COOKIE,
-        clear_pending.parse().unwrap(),
-    );
+    resp.headers_mut()
+        .append(header::SET_COOKIE, clear_pending.parse().unwrap());
     resp
 }
 
@@ -321,8 +360,11 @@ async fn logout(headers: HeaderMap) -> Response {
                     .ok()
                 });
 
-            conn.execute("DELETE FROM sessions WHERE id = ?1", rusqlite::params![session_id])
-                .ok();
+            conn.execute(
+                "DELETE FROM sessions WHERE id = ?1",
+                rusqlite::params![session_id],
+            )
+            .ok();
 
             if let Some((user_id, tenant_id)) = user_info {
                 log_audit_event(
@@ -355,10 +397,8 @@ async fn logout(headers: HeaderMap) -> Response {
 struct UserRow {
     id: String,
     tenant_id: String,
-    email: String,
     password_hash: String,
     mfa_enabled: bool,
-    mfa_secret: Option<String>,
     locked_until: Option<i64>,
     failed_attempts: i64,
 }
@@ -382,13 +422,26 @@ fn create_session_response(
         )
         .ok();
 
-        log_audit_event(conn, Some(tenant_id), Some(user_id), SESSION_CREATED, Some(ip), None);
-        log_audit_event(conn, Some(tenant_id), Some(user_id), USER_LOGIN, Some(ip), None);
+        log_audit_event(
+            conn,
+            Some(tenant_id),
+            Some(user_id),
+            SESSION_CREATED,
+            Some(ip),
+            None,
+        );
+        log_audit_event(
+            conn,
+            Some(tenant_id),
+            Some(user_id),
+            USER_LOGIN,
+            Some(ip),
+            None,
+        );
     });
 
-    let cookie = format!(
-        "idp_session={session_id}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=86400"
-    );
+    let cookie =
+        format!("idp_session={session_id}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=86400");
     let dest = if return_to.is_empty() { "/" } else { return_to };
     let escaped_dest = esc_html(dest);
     let html = format!(
@@ -441,7 +494,8 @@ fn safe_return_to(input: Option<&str>) -> String {
 
 fn extract_origin(url: &str) -> Option<String> {
     // Extract scheme + host from a URL like "https://auth.example.com/path"
-    let after_scheme = url.strip_prefix("https://")
+    let after_scheme = url
+        .strip_prefix("https://")
         .map(|rest| ("https", rest))
         .or_else(|| url.strip_prefix("http://").map(|rest| ("http", rest)))?;
     let (scheme, rest) = after_scheme;
