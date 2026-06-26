@@ -451,11 +451,15 @@ body {
   }
 
   .agent-sidebar {
+    order: 2;
     border-right: 0;
-    border-bottom: 1px solid var(--soft-border);
+    border-top: 1px solid var(--soft-border);
+    border-bottom: 0;
   }
 
   .agent-main {
+    order: 1;
+    min-height: calc(100dvh - 74px);
     grid-template-rows: auto minmax(0, 1fr) auto;
   }
 
