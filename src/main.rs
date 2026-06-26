@@ -74,8 +74,10 @@ async fn main() {
                 .layer(axum_mw::from_fn(middleware::auth::session_auth))
                 .layer(axum_mw::from_fn(middleware::csrf::csrf_protection)),
         )
-        // Account (session-auth'd)
-        .nest("/account", routes::account::router())
+        // Account: the account router declares full `/account/...` paths, so it must
+        // be merged at the root — nesting under "/account" double-prefixes every route
+        // to `/account/account/...` and 404s the real ones (incl. the "Account" nav link).
+        .merge(routes::account::router())
         // Admin API
         .nest("/admin", admin_router)
         // Health check
