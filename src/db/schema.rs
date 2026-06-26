@@ -29,18 +29,18 @@ pub fn create_tables(conn: &Connection) {
         );
         CREATE INDEX IF NOT EXISTS users_tenant_id_idx ON users(tenant_id);
 
-        CREATE TABLE IF NOT EXISTS groups_ (
+        CREATE TABLE IF NOT EXISTS groups (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             description TEXT,
             UNIQUE(tenant_id, name)
         );
-        CREATE INDEX IF NOT EXISTS groups_tenant_id_idx ON groups_(tenant_id);
+        CREATE INDEX IF NOT EXISTS groups_tenant_id_idx ON groups(tenant_id);
 
         CREATE TABLE IF NOT EXISTS user_groups (
             user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            group_id TEXT NOT NULL REFERENCES groups_(id) ON DELETE CASCADE,
+            group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
             PRIMARY KEY (user_id, group_id)
         );
 

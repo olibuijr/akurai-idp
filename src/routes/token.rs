@@ -553,7 +553,7 @@ fn load_user_groups(user_id: &str) -> Vec<String> {
     with_db(|conn| {
         let mut stmt = conn
             .prepare(
-                "SELECT g.name FROM groups_ g
+                "SELECT g.name FROM groups g
                  JOIN user_groups ug ON ug.group_id = g.id
                  WHERE ug.user_id = ?1",
             )

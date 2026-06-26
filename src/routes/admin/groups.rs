@@ -49,11 +49,11 @@ async fn list_groups(Query(q): Query<ListQuery>) -> impl IntoResponse {
     let result = with_db(|conn| {
         let (sql, params): (String, Vec<Box<dyn rusqlite::types::ToSql>>) = match &q.tenant_id {
             Some(tid) => (
-                "SELECT id, tenant_id, name, description FROM groups_ WHERE tenant_id = ?1".to_string(),
+                "SELECT id, tenant_id, name, description FROM groups WHERE tenant_id = ?1".to_string(),
                 vec![Box::new(tid.clone()) as Box<dyn rusqlite::types::ToSql>],
             ),
             None => (
-                "SELECT id, tenant_id, name, description FROM groups_".to_string(),
+                "SELECT id, tenant_id, name, description FROM groups".to_string(),
                 vec![],
             ),
         };
@@ -85,7 +85,7 @@ async fn create_group(Json(body): Json<CreateGroup>) -> impl IntoResponse {
 
     let result = with_db(|conn| {
         conn.execute(
-            "INSERT INTO groups_ (id, tenant_id, name, description) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO groups (id, tenant_id, name, description) VALUES (?1, ?2, ?3, ?4)",
             rusqlite::params![id, body.tenant_id, body.name, body.description],
         )
     });
@@ -114,7 +114,7 @@ async fn create_group(Json(body): Json<CreateGroup>) -> impl IntoResponse {
 
 async fn delete_group(Path(id): Path<String>) -> impl IntoResponse {
     let result = with_db(|conn| {
-        conn.execute("DELETE FROM groups_ WHERE id = ?1", [&id])
+        conn.execute("DELETE FROM groups WHERE id = ?1", [&id])
     });
 
     match result {
