@@ -12,7 +12,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 use crate::config;
-use crate::lib::html::console_page_with_styles;
+use crate::lib::html::console_page_with_theme;
 use crate::middleware::auth::AuthUser;
 use crate::routes::agent_view::{AGENT_OS_STYLES, agent_body, forbidden_body};
 
@@ -31,13 +31,15 @@ struct AgentForm {
 
 async fn agent_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
     if !agent_allowed(&user.email) {
-        return forbidden_page(&user);
+        return forbidden_page(&headers, &user);
     }
     let csrf = csrf_cookie(&headers).unwrap_or_default();
-    Html(console_page_with_styles(
+    let theme = suite_theme_cookie(&headers);
+    Html(console_page_with_theme(
         "Agent Console",
         &agent_body(&user, &csrf, "", None),
         AGENT_OS_STYLES,
+        theme.as_deref(),
     ))
     .into_response()
 }
@@ -48,27 +50,30 @@ async fn agent_submit(
     Form(form): Form<AgentForm>,
 ) -> Response {
     if !agent_allowed(&user.email) {
-        return forbidden_page(&user);
+        return forbidden_page(&headers, &user);
     }
 
     let csrf = csrf_cookie(&headers).unwrap_or_default();
+    let theme = suite_theme_cookie(&headers);
     let prompt = form.prompt.unwrap_or_default();
     let prompt = prompt.trim();
     if prompt.is_empty() {
         let outcome = AgentOutcome::error("Prompt is empty.");
-        return Html(console_page_with_styles(
+        return Html(console_page_with_theme(
             "Agent Console",
             &agent_body(&user, &csrf, prompt, Some(&outcome)),
             AGENT_OS_STYLES,
+            theme.as_deref(),
         ))
         .into_response();
     }
     if prompt.chars().count() > MAX_PROMPT_CHARS {
         let outcome = AgentOutcome::error("Prompt is too long for this console.");
-        return Html(console_page_with_styles(
+        return Html(console_page_with_theme(
             "Agent Console",
             &agent_body(&user, &csrf, prompt, Some(&outcome)),
             AGENT_OS_STYLES,
+            theme.as_deref(),
         ))
         .into_response();
     }
@@ -77,21 +82,24 @@ async fn agent_submit(
         Ok(outcome) => outcome,
         Err(error) => AgentOutcome::error(&error),
     };
-    Html(console_page_with_styles(
+    Html(console_page_with_theme(
         "Agent Console",
         &agent_body(&user, &csrf, prompt, Some(&outcome)),
         AGENT_OS_STYLES,
+        theme.as_deref(),
     ))
     .into_response()
 }
 
-fn forbidden_page(user: &AuthUser) -> Response {
+fn forbidden_page(headers: &HeaderMap, user: &AuthUser) -> Response {
+    let theme = suite_theme_cookie(headers);
     (
         StatusCode::FORBIDDEN,
-        Html(console_page_with_styles(
+        Html(console_page_with_theme(
             "Agent Console",
             &forbidden_body(user),
             AGENT_OS_STYLES,
+            theme.as_deref(),
         )),
     )
         .into_response()
@@ -166,10 +174,26 @@ fn agent_allowed(email: &str) -> bool {
 }
 
 fn csrf_cookie(headers: &HeaderMap) -> Option<String> {
+    cookie_value(headers, "_csrf")
+}
+
+fn suite_theme_cookie(headers: &HeaderMap) -> Option<String> {
+    let theme = cookie_value(headers, "akurai-theme")?;
+    match theme.as_str() {
+        "akurai" | "akurai-light" | "claude-code" | "claude-code-light" | "nord" | "nord-light"
+        | "catppuccin-mocha" | "catppuccin-latte" | "solarized-dark" | "solarized-light"
+        | "gruvbox-dark" | "gruvbox-light" | "tokyo-night" | "tokyo-night-light" | "rose-pine"
+        | "rose-pine-dawn" | "dracula" => Some(theme),
+        _ => None,
+    }
+}
+
+fn cookie_value(headers: &HeaderMap, name: &str) -> Option<String> {
     let cookies = headers.get(header::COOKIE)?.to_str().ok()?;
+    let prefix = format!("{name}=");
     for part in cookies.split(';') {
         let part = part.trim();
-        if let Some(value) = part.strip_prefix("_csrf=") {
+        if let Some(value) = part.strip_prefix(&prefix) {
             return Some(value.to_string());
         }
     }
