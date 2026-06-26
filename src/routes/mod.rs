@@ -1,7 +1,8 @@
+pub mod account;
 pub mod admin;
+pub mod agent;
 pub mod auth_pages;
 pub mod authorize;
-pub mod account;
 pub mod introspect;
 pub mod revoke;
 pub mod token;

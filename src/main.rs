@@ -68,6 +68,12 @@ async fn main() {
         )
         .merge(routes::introspect::router())
         .merge(routes::revoke::router())
+        // Authenticated agent console
+        .merge(
+            routes::agent::router()
+                .layer(axum_mw::from_fn(middleware::auth::session_auth))
+                .layer(axum_mw::from_fn(middleware::csrf::csrf_protection)),
+        )
         // Account (session-auth'd)
         .nest("/account", routes::account::router())
         // Admin API

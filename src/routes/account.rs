@@ -157,6 +157,7 @@ async fn account_overview(headers: HeaderMap) -> Response {
     <li><a href="/account/password">Change password</a></li>
     <li><a href="/account/mfa">Two-factor authentication</a></li>
     <li><a href="/account/sessions">Active sessions</a></li>
+    <li><a href="/agent">Agent console</a></li>
     <li><a href="/logout">Sign out</a></li>
   </ul>
 </nav>"#,

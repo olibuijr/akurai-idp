@@ -23,40 +23,47 @@ const BASE_STYLES: &str = r#"
 
   /* ── Tokens ── */
   :root {
-    --bg:           #F8FAFC;
-    --surface:      #FFFFFF;
-    --primary:      #0F172A;
-    --secondary:    #1E3A8A;
-    --accent:       #A16207;
-    --muted:        #E8ECF1;
-    --border:       #CBD5E1;
-    --border-light: #E2E8F0;
-    --ink:          #0F172A;
-    --ink-muted:    #475569;
-    --ink-faint:    #94A3B8;
-    --error-bg:     #FEF2F2;
-    --error-border: #FECACA;
-    --error-ink:    #991B1B;
-    --success-bg:   #F0FDF4;
-    --success-border:#BBF7D0;
-    --success-ink:  #14532D;
-    --info-bg:      #EFF6FF;
-    --info-border:  #BFDBFE;
-    --info-ink:     #1E40AF;
-    --warn-bg:      #FFFBEB;
-    --warn-border:  #FDE68A;
-    --warn-ink:     #78350F;
+    --bg:           #080A0D;
+    --surface:      rgba(18, 23, 31, .76);
+    --surface-2:    rgba(28, 36, 48, .7);
+    --primary:      #F8FAFC;
+    --secondary:    #67E8F9;
+    --accent:       #B7F36B;
+    --accent-2:     #F7C948;
+    --muted:        rgba(148, 163, 184, .14);
+    --border:       rgba(203, 213, 225, .22);
+    --border-light: rgba(203, 213, 225, .12);
+    --ink:          #EEF6FF;
+    --ink-muted:    #A9B8C8;
+    --ink-faint:    #748398;
+    --error-bg:     rgba(127, 29, 29, .26);
+    --error-border: rgba(248, 113, 113, .34);
+    --error-ink:    #FCA5A5;
+    --success-bg:   rgba(20, 83, 45, .26);
+    --success-border:rgba(134, 239, 172, .34);
+    --success-ink:  #BBF7D0;
+    --info-bg:      rgba(8, 145, 178, .22);
+    --info-border:  rgba(103, 232, 249, .34);
+    --info-ink:     #A5F3FC;
+    --warn-bg:      rgba(120, 53, 15, .24);
+    --warn-border:  rgba(251, 191, 36, .34);
+    --warn-ink:     #FDE68A;
     --radius-sm:    6px;
-    --radius:       10px;
-    --radius-lg:    14px;
-    --shadow:       0 1px 3px rgba(15,23,42,.06), 0 8px 32px rgba(15,23,42,.08);
-    --transition:   150ms cubic-bezier(.4,0,.2,1);
+    --radius:       12px;
+    --radius-lg:    18px;
+    --shadow:       0 18px 50px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.08);
+    --shadow-soft:  10px 10px 28px rgba(0,0,0,.35), -8px -8px 22px rgba(255,255,255,.035);
+    --transition:   160ms cubic-bezier(.4,0,.2,1);
   }
 
   /* ── Base ── */
   body {
     min-height: 100dvh;
-    background: var(--bg);
+    background:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px),
+      var(--bg);
+    background-size: 44px 44px, 44px 44px, auto;
     font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
@@ -124,24 +131,37 @@ const BASE_STYLES: &str = r#"
   }
   input[type=email],
   input[type=password],
-  input[type=text] {
+  input[type=text],
+  textarea {
     display: block;
     width: 100%;
     padding: 0.625rem 0.875rem;
-    border: 1.5px solid var(--border);
+    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    background: var(--surface);
+    background: rgba(5, 8, 12, .68);
     font-family: inherit;
     font-size: 0.9375rem;
     color: var(--ink);
     outline: none;
-    transition: border-color var(--transition), box-shadow var(--transition);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.04), inset 0 12px 24px rgba(0,0,0,.18);
+    transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+  }
+  textarea {
+    min-height: 180px;
+    resize: vertical;
+    font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    line-height: 1.55;
   }
   input::placeholder { color: var(--ink-faint); }
-  input:hover { border-color: #94A3B8; }
+  textarea::placeholder { color: var(--ink-faint); }
+  input:hover, textarea:hover { border-color: rgba(103, 232, 249, .4); }
   input:focus {
     border-color: var(--secondary);
-    box-shadow: 0 0 0 3px rgba(30,58,138,.12);
+    box-shadow: 0 0 0 3px rgba(103, 232, 249, .13), inset 0 12px 24px rgba(0,0,0,.18);
+  }
+  textarea:focus {
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 3px rgba(103, 232, 249, .13), inset 0 12px 24px rgba(0,0,0,.18);
   }
   input[readonly]:focus { box-shadow: none; border-color: var(--border); }
 
@@ -165,8 +185,8 @@ const BASE_STYLES: &str = r#"
   .btn:active { transform: translateY(1px); box-shadow: none !important; }
   .btn:focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
 
-  .btn-primary { background: var(--primary); color: #fff; }
-  .btn-primary:hover { background: var(--secondary); box-shadow: 0 4px 14px rgba(30,58,138,.25); }
+  .btn-primary { background: linear-gradient(135deg, var(--secondary), var(--accent)); color: #071013; }
+  .btn-primary:hover { box-shadow: 0 10px 30px rgba(103, 232, 249, .2); }
 
   .btn-danger  { background: #991B1B; color: #fff; }
   .btn-danger:hover  { background: #7F1D1D; box-shadow: 0 4px 14px rgba(127,29,29,.25); }
@@ -190,10 +210,10 @@ const BASE_STYLES: &str = r#"
     font-weight: 600;
     cursor: pointer;
     transition: background var(--transition), box-shadow var(--transition), transform var(--transition);
-    background: var(--primary);
-    color: #fff;
+    background: linear-gradient(135deg, var(--secondary), var(--accent));
+    color: #071013;
   }
-  button[type=submit]:hover { background: var(--secondary); box-shadow: 0 4px 14px rgba(30,58,138,.2); }
+  button[type=submit]:hover { box-shadow: 0 10px 30px rgba(103, 232, 249, .2); }
   button[type=submit]:active { transform: translateY(1px); box-shadow: none; }
   button[type=submit]:focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
   button[type=submit].danger  { background: #991B1B; }
@@ -221,6 +241,29 @@ const BASE_STYLES: &str = r#"
   .alert--success { background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success-ink); }
   .alert--info    { background: var(--info-bg);    border: 1px solid var(--info-border);    color: var(--info-ink); }
   .alert--warn    { background: var(--warn-bg);    border: 1px solid var(--warn-border);    color: var(--warn-ink); }
+
+  .error, .success {
+    border-radius: var(--radius-sm);
+    padding: .75rem .875rem;
+    margin: .75rem 0 1rem;
+    line-height: 1.5;
+    border: 1px solid;
+  }
+  .error { color: var(--error-ink); background: var(--error-bg); border-color: var(--error-border); }
+  .success { color: var(--success-ink); background: var(--success-bg); border-color: var(--success-border); }
+
+  p { color: var(--ink-muted); line-height: 1.6; margin: .75rem 0; }
+  h2 { color: var(--primary); font-size: 1.25rem; margin: 0 0 .75rem; }
+  h3 { color: var(--primary); font-size: 1rem; margin: 1.25rem 0 .5rem; }
+  dl { display: grid; gap: .7rem; margin: 1rem 0 1.25rem; }
+  dt { color: var(--ink-faint); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+  dd { color: var(--ink); font-weight: 600; margin-top: .15rem; }
+  nav ul { display: grid; gap: .5rem; list-style: none; margin-top: 1rem; }
+  nav a, .action-link { color: var(--secondary); text-decoration: none; font-weight: 600; }
+  nav a:hover, .action-link:hover { color: var(--accent); }
+  .small { font-size: .8125rem; }
+  .mono { font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace; }
+  .danger { color: var(--error-ink); }
 
   /* ── Divider ── */
   .divider { height: 1px; background: var(--border-light); margin: 1.5rem 0; }
@@ -280,7 +323,7 @@ pub fn auth_page(title: &str, body: &str) -> String {
   <title>{title} — AkurAI ID</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
     {BASE_STYLES}
     body {{
@@ -295,6 +338,7 @@ pub fn auth_page(title: &str, body: &str) -> String {
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow);
+      backdrop-filter: blur(22px) saturate(130%);
       padding: 2.5rem 2.25rem;
       width: 100%;
       max-width: 420px;
@@ -336,6 +380,7 @@ const ACCOUNT_EXTRA_STYLES: &str = r#"
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow);
+      backdrop-filter: blur(22px) saturate(130%);
       padding: 2.5rem 2.25rem;
       width: 100%;
       max-width: 580px;
@@ -390,9 +435,10 @@ const ACCOUNT_EXTRA_STYLES: &str = r#"
       font-size: 0.75rem;
       font-weight: 600;
     }
-    .badge-green { background: #DCFCE7; color: #14532D; }
+    .badge-green, .badge-ok { background: var(--success-bg); color: var(--success-ink); border: 1px solid var(--success-border); }
     .badge-gray  { background: var(--muted); color: var(--ink-muted); }
     .badge-blue  { background: #DBEAFE; color: #1E40AF; }
+    .badge-warn  { background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-border); }
 
     /* ── Table ── */
     .table-wrap { overflow-x: auto; margin-top: 0.5rem; }
@@ -489,7 +535,7 @@ pub fn account_page(title: &str, body: &str) -> String {
   <title>{title} — AkurAI ID</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
     {BASE_STYLES}
     {ACCOUNT_EXTRA_STYLES}
@@ -512,13 +558,214 @@ pub fn account_page(title: &str, body: &str) -> String {
     )
 }
 
+const CONSOLE_EXTRA_STYLES: &str = r#"
+    body {
+      min-height: 100dvh;
+      padding: 2rem;
+    }
+    .console-wrap {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+    }
+    .console-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .console-topbar .wordmark { margin-bottom: 0; }
+    .console-status {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .console-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .35rem .65rem;
+      border-radius: 999px;
+      color: var(--ink-muted);
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.045);
+      font-size: .78rem;
+      font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+    .console-dot::before {
+      content: "";
+      width: .45rem;
+      height: .45rem;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 16px rgba(183, 243, 107, .55);
+    }
+    .console-card {
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: linear-gradient(145deg, rgba(18,23,31,.84), rgba(9,12,17,.72));
+      box-shadow: var(--shadow), var(--shadow-soft);
+      backdrop-filter: blur(24px) saturate(145%);
+      overflow: hidden;
+      position: relative;
+    }
+    .console-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(120deg, rgba(103,232,249,.16), transparent 32%),
+        linear-gradient(300deg, rgba(183,243,107,.12), transparent 38%);
+      opacity: .75;
+    }
+    .console-card > * { position: relative; }
+    .agent-console { padding: 1.2rem; }
+    .agent-rail {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      padding: .2rem .2rem 1rem;
+    }
+    .agent-chip {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.055);
+      color: var(--ink-muted);
+      border-radius: 999px;
+      padding: .35rem .65rem;
+      font-size: .78rem;
+      font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+    .agent-chip-live { color: var(--accent); border-color: rgba(183,243,107,.3); }
+    .agent-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+      gap: 1rem;
+      align-items: stretch;
+    }
+    .agent-command, .agent-output {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(5,8,12,.48);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.055), inset 0 -18px 42px rgba(0,0,0,.22);
+      padding: 1rem;
+    }
+    .agent-command label {
+      font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+      color: var(--accent);
+    }
+    .agent-command textarea { min-height: 320px; }
+    .agent-command-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .agent-output {
+      display: flex;
+      flex-direction: column;
+      min-height: 420px;
+    }
+    .agent-output-kicker {
+      color: var(--accent);
+      font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .78rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: .65rem;
+    }
+    .agent-output-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      margin-bottom: .85rem;
+    }
+    .agent-output-meta span {
+      color: var(--ink-faint);
+      border: 1px solid var(--border-light);
+      border-radius: 999px;
+      padding: .22rem .5rem;
+      font-size: .72rem;
+      font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+    .agent-output pre {
+      flex: 1;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      color: var(--ink);
+      font: 0.9rem/1.65 ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+    .agent-output-empty pre { color: var(--ink-faint); }
+    .agent-output-error {
+      border-color: var(--error-border);
+      background: rgba(69, 10, 10, .24);
+    }
+    .agent-output-error .agent-output-kicker,
+    .agent-output-error pre { color: var(--error-ink); }
+    @media (max-width: 860px) {
+      body { padding: 1rem; }
+      .console-topbar { align-items: flex-start; flex-direction: column; }
+      .console-status { justify-content: flex-start; }
+      .agent-grid { grid-template-columns: 1fr; }
+      .agent-command textarea { min-height: 220px; }
+      .agent-output { min-height: 260px; }
+    }
+"#;
+
+pub fn console_page(title: &str, body: &str) -> String {
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title} — AkurAI ID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    {BASE_STYLES}
+    {CONSOLE_EXTRA_STYLES}
+  </style>
+</head>
+<body>
+<main class="console-wrap">
+  <header class="console-topbar">
+    {WORDMARK}
+    <div class="console-status">
+      <span class="console-dot">auth.olibuijr.com</span>
+      <span class="console-dot">AkurAI-RustAgent</span>
+    </div>
+  </header>
+  <div class="console-card">
+    {body}
+  </div>
+</main>
+</body>
+</html>"#,
+        title = esc_html(title),
+        BASE_STYLES = BASE_STYLES,
+        CONSOLE_EXTRA_STYLES = CONSOLE_EXTRA_STYLES,
+        WORDMARK = WORDMARK,
+        body = body,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn esc_html_works() {
-        assert_eq!(esc_html("<b>\"hi\" & 'bye'</b>"), "&lt;b&gt;&quot;hi&quot; &amp; &#x27;bye&#x27;&lt;/b&gt;");
+        assert_eq!(
+            esc_html("<b>\"hi\" & 'bye'</b>"),
+            "&lt;b&gt;&quot;hi&quot; &amp; &#x27;bye&#x27;&lt;/b&gt;"
+        );
     }
 
     #[test]
@@ -534,5 +781,12 @@ mod tests {
         let html = account_page("Settings", "<h1>Settings</h1>");
         assert!(html.contains("max-width: 580px"));
         assert!(html.contains("account-nav"));
+    }
+
+    #[test]
+    fn console_page_contains_agent_shell() {
+        let html = console_page("Agent", "<section>Agent</section>");
+        assert!(html.contains("console-card"));
+        assert!(html.contains("AkurAI-RustAgent"));
     }
 }

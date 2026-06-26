@@ -13,6 +13,7 @@ Lightweight Rust OIDC/OAuth2 identity provider for [AkurAI](https://github.com/o
 - Multi-tenant: users, groups, clients isolated by tenant
 - Admin REST API with bearer token auth
 - Browser UI: login, MFA, account settings (password, MFA, sessions)
+- Authenticated agent console at `/agent` for AkurAI-RustAgent interaction
 - Rate limiting, CSRF protection, security headers
 - SQLite storage (WAL mode)
 
@@ -40,6 +41,10 @@ CC_x86_64_unknown_linux_musl=musl-gcc cargo build --release --target x86_64-unkn
 | `IDP_DB_PATH` | `./data/idp.sqlite` | SQLite database path |
 | `IDP_BASE_URL` | `https://auth.olibuijr.com` | Public issuer URL |
 | `IDP_ADMIN_TOKEN` | *(empty)* | Bearer token for admin API |
+| `IDP_AGENT_GATEWAY_URL` | `http://127.0.0.1:8644/query` | Rust Agent gateway query endpoint |
+| `IDP_AGENT_ALLOWED_EMAILS` | `olibuijr@olibuijr.com` | Comma-separated console allowlist, or `*` |
+| `IDP_AGENT_PROVIDER` | `openai-codex` | Agent provider sent to the gateway |
+| `IDP_AGENT_MODEL` | `gpt-5.4-mini` | Agent model sent to the gateway |
 
 ## License
 
