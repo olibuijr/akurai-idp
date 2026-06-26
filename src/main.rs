@@ -63,7 +63,9 @@ async fn main() {
                 .layer(axum_mw::from_fn(middleware::auth::session_optional))
         )
         .merge(routes::token::router())
-        .merge(routes::userinfo::router())
+        .merge(
+            routes::userinfo::router().layer(axum_mw::from_fn(middleware::auth::bearer_auth)),
+        )
         .merge(routes::introspect::router())
         .merge(routes::revoke::router())
         // Account (session-auth'd)

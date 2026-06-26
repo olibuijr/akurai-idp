@@ -390,13 +390,28 @@ fn create_session_response(
         "idp_session={session_id}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=86400"
     );
     let dest = if return_to.is_empty() { "/" } else { return_to };
+    let escaped_dest = esc_html(dest);
+    let html = format!(
+        r#"<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0; url={escaped_dest}">
+  <title>Signing in - AkurAI ID</title>
+</head>
+<body>
+  <p>Signing in... <a href="{escaped_dest}">Continue</a></p>
+</body>
+</html>"#
+    );
 
     (
-        StatusCode::SEE_OTHER,
+        StatusCode::OK,
         [
-            (header::LOCATION, dest.to_string()),
             (header::SET_COOKIE, cookie),
+            (header::CONTENT_TYPE, "text/html; charset=utf-8".to_string()),
         ],
+        html,
     )
         .into_response()
 }

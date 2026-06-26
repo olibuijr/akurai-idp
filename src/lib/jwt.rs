@@ -62,6 +62,7 @@ pub fn verify_token(token: &str, public_key_pem: &str) -> Result<Value, String> 
 
     let mut validation = Validation::new(Algorithm::EdDSA);
     validation.validate_exp = true;
+    validation.validate_aud = false;
     validation.required_spec_claims.clear();
 
     let token_data = decode::<Value>(token, &decoding_key, &validation)
@@ -99,6 +100,15 @@ mod tests {
         let token = sign_token(&claims, &priv_pem, &kid, 3600).unwrap();
         let decoded = verify_token(&token, &pub_pem).unwrap();
         assert_eq!(decoded["sub"], "user-123");
+    }
+
+    #[test]
+    fn verifies_token_with_audience_claim() {
+        let (kid, pub_pem, priv_pem) = generate_signing_key();
+        let claims = serde_json::json!({"sub": "user-123", "iss": "test", "aud": "client-123"});
+        let token = sign_token(&claims, &priv_pem, &kid, 3600).unwrap();
+        let decoded = verify_token(&token, &pub_pem).unwrap();
+        assert_eq!(decoded["aud"], "client-123");
     }
 
     #[test]

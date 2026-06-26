@@ -1,6 +1,6 @@
 use axum::{
     body::Body,
-    http::{Method, Request, Response, StatusCode, header},
+    http::{HeaderValue, Method, Request, Response, StatusCode, header},
     middleware::Next,
     response::IntoResponse,
 };
@@ -8,15 +8,20 @@ use serde_json::json;
 
 use crate::lib::crypto::generate_secure_token;
 
-pub async fn csrf_protection(request: Request<Body>, next: Next) -> Response<Body> {
+pub async fn csrf_protection(mut request: Request<Body>, next: Next) -> Response<Body> {
     let method = request.method().clone();
 
     // Skip CSRF for safe methods — just ensure cookie exists
     if method == Method::GET || method == Method::HEAD || method == Method::OPTIONS {
-        let has_cookie = get_csrf_cookie(&request).is_some();
-        let mut response = next.run(request).await;
-        if !has_cookie {
+        let generated_token = if get_csrf_cookie(&request).is_some() {
+            None
+        } else {
             let token = generate_secure_token(32);
+            set_csrf_request_cookie(&mut request, &token);
+            Some(token)
+        };
+        let mut response = next.run(request).await;
+        if let Some(token) = generated_token {
             set_csrf_cookie(&mut response, &token);
         }
         return response;
@@ -89,6 +94,21 @@ fn get_csrf_cookie(request: &Request<Body>) -> Option<String> {
         }
     }
     None
+}
+
+fn set_csrf_request_cookie(request: &mut Request<Body>, token: &str) {
+    let value = match request
+        .headers()
+        .get(header::COOKIE)
+        .and_then(|header| header.to_str().ok())
+    {
+        Some(existing) if !existing.trim().is_empty() => format!("{existing}; _csrf={token}"),
+        _ => format!("_csrf={token}"),
+    };
+
+    if let Ok(value) = HeaderValue::from_str(&value) {
+        request.headers_mut().insert(header::COOKIE, value);
+    }
 }
 
 fn get_csrf_header(request: &Request<Body>) -> Option<String> {
