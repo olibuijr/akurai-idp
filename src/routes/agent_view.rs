@@ -4,66 +4,119 @@ use crate::middleware::auth::AuthUser;
 use crate::routes::agent::{AgentOutcome, MAX_PROMPT_CHARS};
 
 pub const AGENT_OS_STYLES: &str = r#"
-    .agent-os {
-      min-height: min(78vh, 980px);
-      display: grid;
-      grid-template-columns: 232px minmax(0, 1fr) 284px;
+    :root {
+      --bg: #f6f1e8;
+      --surface: rgba(255, 252, 246, .86);
+      --surface-2: rgba(246, 239, 229, .9);
+      --primary: #2b2118;
+      --secondary: #8a4b2a;
+      --accent: #c15f3c;
+      --accent-2: #7b8c6c;
+      --muted: rgba(75, 63, 51, .08);
+      --border: rgba(75, 63, 51, .16);
+      --border-light: rgba(75, 63, 51, .1);
+      --ink: #2b2118;
+      --ink-muted: #6d6258;
+      --ink-faint: #978b80;
+      --shadow: 0 24px 70px rgba(61, 45, 31, .14), inset 0 1px 0 rgba(255,255,255,.7);
+      --shadow-soft: 8px 12px 28px rgba(84, 62, 43, .08), -8px -10px 28px rgba(255,255,255,.55);
+    }
+    body {
+      padding: 1.15rem;
       background:
-        linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)),
-        rgba(3, 7, 11, .45);
+        linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,.1)),
+        radial-gradient(circle at 12% 8%, rgba(193,95,60,.12), transparent 32%),
+        #f6f1e8;
+    }
+    .console-wrap {
+      width: min(1480px, 100%);
+    }
+    .console-topbar {
+      margin-bottom: .7rem;
+      color: var(--ink);
+    }
+    .console-dot {
+      color: var(--ink-muted);
+      border-color: var(--border);
+      background: rgba(255,255,255,.55);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+    }
+    .console-dot::before {
+      background: var(--accent-2);
+      box-shadow: 0 0 0 3px rgba(123,140,108,.12);
+    }
+    .console-card {
+      border-radius: 18px;
+      border-color: var(--border);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,255,255,.54)),
+        rgba(246,241,232,.88);
+      box-shadow: var(--shadow), var(--shadow-soft);
+      backdrop-filter: blur(22px) saturate(140%);
+    }
+    .console-card::before { display: none; }
+    .agent-os {
+      min-height: min(82vh, 980px);
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr) 312px;
+      color: var(--ink);
+      background: rgba(250, 246, 238, .7);
     }
     .agent-sidebar,
     .agent-context {
-      padding: 1rem;
       min-width: 0;
-      background: rgba(3, 7, 11, .34);
+      background: rgba(246, 239, 229, .74);
     }
-    .agent-sidebar { border-right: 1px solid var(--border-light); }
-    .agent-context { border-left: 1px solid var(--border-light); }
+    .agent-sidebar {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: .8rem;
+      padding: .8rem;
+      border-right: 1px solid var(--border);
+    }
+    .agent-context {
+      padding: .9rem;
+      border-left: 1px solid var(--border);
+    }
     .agent-main {
       min-width: 0;
       display: grid;
       grid-template-rows: auto minmax(0, 1fr) auto;
-      background:
-        linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,.024) 1px, transparent 1px);
-      background-size: 32px 32px;
+      background: rgba(255, 252, 246, .72);
     }
-    .agent-head {
+    .agent-product {
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
-      padding: 1rem 1.15rem;
-      border-bottom: 1px solid var(--border-light);
-      background: rgba(255,255,255,.026);
-    }
-    .agent-title {
-      color: var(--primary);
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: 0;
-      margin: 0 0 .25rem;
-    }
-    .agent-subtitle {
-      margin: 0;
-      color: var(--ink-muted);
-      font-size: .82rem;
-      line-height: 1.5;
+      align-items: center;
+      gap: .65rem;
+      padding: .2rem .15rem .55rem;
     }
     .agent-avatar {
-      width: 42px;
-      height: 42px;
-      border: 1px solid rgba(103,232,249,.38);
-      border-radius: 14px;
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(138,75,42,.24);
+      border-radius: 10px;
       display: inline-grid;
       place-items: center;
-      color: var(--accent);
-      background: linear-gradient(145deg, rgba(103,232,249,.14), rgba(183,243,107,.08));
+      color: var(--secondary);
+      background: linear-gradient(145deg, rgba(255,255,255,.75), rgba(236,224,209,.68));
       font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: .82rem;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 8px 8px 24px rgba(0,0,0,.22);
+      font-size: .78rem;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 6px 8px 18px rgba(84,62,43,.08);
       flex: 0 0 auto;
+    }
+    .agent-brand {
+      min-width: 0;
+      color: var(--primary);
+      font-size: .92rem;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+    .agent-brand small {
+      display: block;
+      margin-top: .14rem;
+      color: var(--ink-faint);
+      font-size: .7rem;
+      font-weight: 500;
     }
     .agent-meta,
     .agent-tabs,
@@ -73,105 +126,212 @@ pub const AGENT_OS_STYLES: &str = r#"
       gap: .45rem;
       align-items: center;
     }
-    .agent-meta { justify-content: flex-end; }
+    .agent-meta { justify-content: flex-start; }
     .agent-pill,
     .agent-tab,
     .agent-state {
-      border: 1px solid var(--border-light);
+      border: 1px solid var(--border);
       border-radius: 999px;
       color: var(--ink-muted);
-      background: rgba(255,255,255,.048);
-      padding: .32rem .58rem;
-      font: .72rem/1.2 ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+      background: rgba(255,255,255,.58);
+      padding: .28rem .54rem;
+      font: .7rem/1.2 ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
       max-width: 100%;
       overflow-wrap: anywhere;
     }
     .agent-pill-live,
     .agent-tab-active {
-      color: var(--accent);
-      border-color: rgba(183,243,107,.34);
-      background: rgba(183,243,107,.07);
+      color: var(--secondary);
+      border-color: rgba(193,95,60,.28);
+      background: rgba(193,95,60,.08);
+    }
+    .agent-os .btn-primary {
+      background: #2f261f;
+      color: #fffaf2;
+      border: 1px solid rgba(47,38,31,.12);
+      box-shadow: 0 8px 18px rgba(47,38,31,.16);
+    }
+    .agent-os .btn-primary:hover {
+      box-shadow: 0 10px 24px rgba(47,38,31,.2);
+    }
+    .agent-modebar {
+      display: grid;
+      gap: .35rem;
+    }
+    .agent-mode {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      gap: .55rem;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: .45rem .55rem;
+      color: var(--ink-muted);
+      background: transparent;
+      text-decoration: none;
+      font-size: .86rem;
+      font-weight: 600;
+    }
+    .agent-mode::before {
+      content: attr(data-icon);
+      width: 1.25rem;
+      color: var(--ink-faint);
+      font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .78rem;
+      text-align: center;
+    }
+    .agent-mode-active {
+      color: var(--primary);
+      border-color: rgba(138,75,42,.16);
+      background: rgba(255,255,255,.72);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 8px 20px rgba(84,62,43,.06);
     }
     .agent-section {
-      padding: .95rem 0;
+      padding: .75rem 0 0;
       border-top: 1px solid var(--border-light);
     }
     .agent-section:first-child { border-top: 0; padding-top: 0; }
     .agent-section h2,
     .agent-section h3 {
-      color: var(--primary);
-      font-size: .74rem;
-      letter-spacing: .08em;
+      color: var(--ink-faint);
+      font-size: .68rem;
+      letter-spacing: .06em;
       text-transform: uppercase;
-      margin: 0 0 .7rem;
+      margin: 0 0 .52rem;
       font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
     }
     .agent-nav {
       display: grid;
-      gap: .45rem;
+      gap: .32rem;
     }
     .agent-nav a,
     .agent-nav span {
-      min-height: 34px;
+      min-height: 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: .6rem;
       border: 1px solid transparent;
-      border-radius: 8px;
-      padding: .48rem .55rem;
+      border-radius: 9px;
+      padding: .42rem .48rem;
       color: var(--ink-muted);
       text-decoration: none;
-      font-size: .82rem;
-      background: rgba(255,255,255,.025);
+      font-size: .8rem;
+      background: transparent;
     }
     .agent-nav a:hover {
       color: var(--primary);
-      border-color: rgba(103,232,249,.26);
-      background: rgba(103,232,249,.07);
+      border-color: rgba(138,75,42,.14);
+      background: rgba(255,255,255,.52);
     }
     .agent-nav .active {
       color: var(--primary);
-      border-color: rgba(183,243,107,.28);
-      background: linear-gradient(135deg, rgba(103,232,249,.12), rgba(183,243,107,.08));
+      border-color: rgba(138,75,42,.16);
+      background: rgba(255,255,255,.66);
     }
     .agent-count {
       color: var(--ink-faint);
       font: .68rem/1 ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
     }
+    .agent-new-task {
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-start;
+      border: 1px solid rgba(138,75,42,.18);
+      background: rgba(255,255,255,.68);
+      color: var(--secondary);
+      border-radius: 10px;
+      padding: .55rem .65rem;
+      text-decoration: none;
+      font-size: .86rem;
+      font-weight: 700;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.75);
+    }
+    .agent-new-task:hover {
+      color: var(--primary);
+      background: rgba(255,255,255,.86);
+    }
+    .agent-footnote {
+      color: var(--ink-faint);
+      font-size: .72rem;
+      line-height: 1.45;
+      margin: .2rem .1rem 0;
+    }
+    .agent-head {
+      display: grid;
+      gap: .75rem;
+      padding: 1rem 1.15rem .85rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.58);
+    }
+    .agent-head-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .agent-title {
+      color: var(--primary);
+      font-size: 1.08rem;
+      font-weight: 700;
+      letter-spacing: 0;
+      margin: 0 0 .2rem;
+    }
+    .agent-subtitle {
+      margin: 0;
+      color: var(--ink-muted);
+      font-size: .82rem;
+      line-height: 1.5;
+    }
     .agent-timeline {
       min-width: 0;
       display: grid;
       align-content: start;
-      gap: .85rem;
-      padding: 1rem 1.15rem;
+      gap: .78rem;
+      padding: 1rem 1.15rem 1.1rem;
       overflow: visible;
     }
     .agent-event,
     .agent-composer,
     .agent-context-card {
       min-width: 0;
-      border: 1px solid var(--border-light);
-      border-radius: 8px;
-      background: rgba(6, 10, 15, .72);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 10px 14px 30px rgba(0,0,0,.2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,.72);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.72), 0 10px 28px rgba(84,62,43,.06);
     }
-    .agent-event { padding: .9rem; }
+    .agent-event { padding: .78rem .88rem; }
+    .agent-event-user {
+      width: min(760px, 86%);
+      justify-self: end;
+      border-color: rgba(123,140,108,.24);
+      background: rgba(244, 249, 239, .78);
+    }
+    .agent-event-assistant {
+      width: min(820px, 92%);
+      justify-self: start;
+    }
+    .agent-event-tool {
+      width: min(760px, 88%);
+      justify-self: start;
+      background: rgba(246,239,229,.72);
+    }
     .agent-event-error {
       border-color: var(--error-border);
-      background: rgba(69, 10, 10, .24);
+      background: rgba(127, 29, 29, .08);
     }
     .agent-event-head {
       display: flex;
       justify-content: space-between;
       gap: .75rem;
       align-items: center;
-      margin-bottom: .7rem;
+      margin-bottom: .56rem;
     }
     .agent-channel {
-      color: var(--secondary);
-      font: .7rem/1 ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-      letter-spacing: .08em;
+      color: var(--ink-faint);
+      font: .68rem/1 ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: .05em;
       text-transform: uppercase;
     }
     .agent-time {
@@ -183,19 +343,19 @@ pub const AGENT_OS_STYLES: &str = r#"
       white-space: pre-wrap;
       overflow-wrap: anywhere;
       color: var(--ink);
-      font: .88rem/1.6 ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+      font: .88rem/1.62 "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     .agent-event-error pre { color: var(--error-ink); }
     .agent-tool-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: .55rem;
+      gap: .45rem;
     }
     .agent-kv {
       border: 1px solid var(--border-light);
-      border-radius: 8px;
-      padding: .55rem;
-      background: rgba(255,255,255,.03);
+      border-radius: 10px;
+      padding: .48rem .52rem;
+      background: rgba(255,255,255,.55);
       min-width: 0;
     }
     .agent-kv dt {
@@ -211,25 +371,30 @@ pub const AGENT_OS_STYLES: &str = r#"
     }
     .agent-composer {
       margin: 0 1.15rem 1rem;
-      padding: .85rem;
-      background: linear-gradient(180deg, rgba(255,255,255,.052), rgba(255,255,255,.022));
+      padding: .72rem;
+      background: rgba(255,255,255,.82);
     }
     .agent-composer label {
-      color: var(--accent);
+      color: var(--ink-faint);
       font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: .78rem;
+      font-size: .7rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
     }
     .agent-composer textarea {
-      min-height: 132px;
-      border-radius: 8px;
+      min-height: 118px;
+      border-radius: 11px;
       margin-top: .35rem;
+      background: rgba(250, 246, 238, .75);
+      color: var(--ink);
+      border-color: var(--border);
     }
     .agent-composer-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: .75rem;
-      margin-top: .7rem;
+      margin-top: .62rem;
     }
     .agent-hint {
       color: var(--ink-faint);
@@ -239,12 +404,15 @@ pub const AGENT_OS_STYLES: &str = r#"
     }
     .agent-context-grid {
       display: grid;
-      gap: .7rem;
+      gap: .72rem;
     }
-    .agent-context-card { padding: .75rem; }
+    .agent-context-card {
+      padding: .78rem;
+      background: rgba(255,255,255,.6);
+    }
     .agent-context-card h3 {
       color: var(--primary);
-      font-size: .8rem;
+      font-size: .82rem;
       margin: 0 0 .35rem;
       letter-spacing: 0;
       text-transform: none;
@@ -262,25 +430,48 @@ pub const AGENT_OS_STYLES: &str = r#"
       list-style: none;
       margin: .5rem 0 0;
     }
+    .agent-progress {
+      display: grid;
+      gap: .48rem;
+      margin-top: .54rem;
+    }
+    .agent-progress-row {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      color: var(--ink-muted);
+      font-size: .78rem;
+    }
+    .agent-progress-dot {
+      width: 1rem;
+      height: 1rem;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid rgba(123,140,108,.35);
+      border-radius: 999px;
+      color: var(--accent-2);
+      font-size: .62rem;
+      background: rgba(244,249,239,.78);
+    }
     .agent-request {
       display: grid;
-      gap: .45rem;
-      margin-top: .55rem;
+      gap: .38rem;
+      margin-top: .5rem;
     }
     .agent-request span {
       border: 1px solid var(--border-light);
-      border-radius: 8px;
-      padding: .42rem .48rem;
+      border-radius: 9px;
+      padding: .38rem .46rem;
       color: var(--ink-muted);
-      background: rgba(255,255,255,.025);
+      background: rgba(255,255,255,.48);
       font: .72rem/1.3 ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
     }
     @media (max-width: 1120px) {
-      .agent-os { grid-template-columns: 210px minmax(0, 1fr); }
+      .agent-os { grid-template-columns: 220px minmax(0, 1fr); }
       .agent-context {
         grid-column: 1 / -1;
         border-left: 0;
-        border-top: 1px solid var(--border-light);
+        border-top: 1px solid var(--border);
       }
       .agent-context-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
@@ -289,13 +480,17 @@ pub const AGENT_OS_STYLES: &str = r#"
       .agent-sidebar,
       .agent-context {
         border: 0;
-        border-bottom: 1px solid var(--border-light);
+        border-bottom: 1px solid var(--border);
       }
-      .agent-context { border-top: 1px solid var(--border-light); }
-      .agent-head { flex-direction: column; }
+      .agent-context { border-top: 1px solid var(--border); }
+      .agent-head-top { flex-direction: column; }
       .agent-meta { justify-content: flex-start; }
       .agent-tool-grid,
       .agent-context-grid { grid-template-columns: 1fr; }
+      .agent-event,
+      .agent-event-user,
+      .agent-event-tool,
+      .agent-event-assistant { width: 100%; }
       .agent-composer-footer { align-items: stretch; flex-direction: column; }
       .agent-actions { justify-content: space-between; }
       .agent-actions .btn { width: 100%; }
@@ -319,13 +514,23 @@ pub(crate) fn agent_body(
     format!(
         r#"<section class="agent-os" aria-label="AkurAI-RustAgent workspace">
   <aside class="agent-sidebar" aria-label="Agent workspace navigation">
-    <div class="agent-section">
+    <div class="agent-product">
       <div class="agent-avatar" aria-hidden="true">{initials}</div>
-      <h2>Main tenant agent</h2>
+      <div class="agent-brand">AkurAI-RustAgent<small>olibuijr workspace</small></div>
+    </div>
+    <a class="agent-new-task" href="/agent">New task</a>
+    <nav class="agent-modebar" aria-label="Agent modes">
+      <span class="agent-mode agent-mode-active" data-icon="C">Chat</span>
+      <span class="agent-mode" data-icon="K">Code</span>
+      <span class="agent-mode" data-icon="W">Co-work</span>
+      <span class="agent-mode" data-icon="A">Artifacts</span>
+    </nav>
+    <div class="agent-section">
+      <h2>Workspace</h2>
       <nav class="agent-nav" aria-label="Workspace">
-        <span class="active">Run timeline <b class="agent-count">live</b></span>
-        <span>Memory <b class="agent-count">persistent</b></span>
-        <span>Notes <b class="agent-count">vaulted</b></span>
+        <span class="active">This run <b class="agent-count">live</b></span>
+        <span>Memory <b class="agent-count">context</b></span>
+        <span>Notes <b class="agent-count">source</b></span>
         <span>Passvault <b class="agent-count">sealed</b></span>
       </nav>
     </div>
@@ -337,6 +542,7 @@ pub(crate) fn agent_body(
         <span>Curator <b class="agent-count">ready</b></span>
       </nav>
     </div>
+    <p class="agent-footnote">The web surface uses the stable HTTP gateway today. Streaming events and receipts will attach here when the gateway exposes them.</p>
     <div class="agent-section">
       <h2>Account</h2>
       <nav class="agent-nav" aria-label="Account links">
@@ -347,21 +553,23 @@ pub(crate) fn agent_body(
 
   <section class="agent-main" aria-label="Agent run">
     <header class="agent-head">
-      <div>
-        <h1 class="agent-title">AkurAI-RustAgent</h1>
-        <p class="agent-subtitle">Authenticated workspace for {email}. Gateway runs stay scoped to this tenant session.</p>
-        <div class="agent-tabs" aria-label="Channels">
-          <span class="agent-tab agent-tab-active">commentary</span>
-          <span class="agent-tab">tool_call</span>
-          <span class="agent-tab">approval</span>
-          <span class="agent-tab">question</span>
-          <span class="agent-tab">final</span>
+      <div class="agent-head-top">
+        <div>
+          <h1 class="agent-title">Welcome back, olibuijr</h1>
+          <p class="agent-subtitle">Ask the tenant agent to inspect, edit, deploy, or organize work. Runs stay scoped to {email}.</p>
+        </div>
+        <div class="agent-meta" aria-label="Runtime metadata">
+          <span class="agent-pill agent-pill-live">gateway stable</span>
+          <span class="agent-pill">{provider}</span>
+          <span class="agent-pill">{model}</span>
         </div>
       </div>
-      <div class="agent-meta" aria-label="Runtime metadata">
-        <span class="agent-pill agent-pill-live">gateway stable</span>
-        <span class="agent-pill">{provider}</span>
-        <span class="agent-pill">{model}</span>
+      <div class="agent-tabs" aria-label="Channels">
+        <span class="agent-tab agent-tab-active">chat</span>
+        <span class="agent-tab">analysis</span>
+        <span class="agent-tab">tools</span>
+        <span class="agent-tab">approvals</span>
+        <span class="agent-tab">final</span>
       </div>
     </header>
 
@@ -371,7 +579,7 @@ pub(crate) fn agent_body(
 
     <form class="agent-composer" method="post" action="" aria-label="Submit command to RustAgent">
       <input type="hidden" name="_csrf" value="{csrf}">
-      <label for="prompt">Command</label>
+      <label for="prompt">Message AkurAI-RustAgent</label>
       <textarea id="prompt" name="prompt" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" placeholder="Ask Rust Agent to inspect, plan, edit, deploy, or operate your workspace...">{prompt}</textarea>
       <div class="agent-composer-footer">
         <p class="agent-hint">Session <span class="mono">{session_id}</span></p>
@@ -421,16 +629,16 @@ pub(crate) fn forbidden_body(user: &AuthUser) -> String {
 }
 
 fn render_ready_timeline() -> String {
-    r#"<article class="agent-event" data-channel="system" data-kind="ready">
+    r#"<article class="agent-event agent-event-assistant" data-channel="system" data-kind="ready">
   <div class="agent-event-head">
-    <span class="agent-channel">system.ready</span>
+    <span class="agent-channel">AkurAI-RustAgent</span>
     <span class="agent-time">awaiting input</span>
   </div>
-  <pre>AkurAI-RustAgent is ready. The next command will run through the stable Rust gateway and return as a structured timeline item.</pre>
+  <pre>I am ready to work in this tenant workspace. I can inspect code, summarize context, plan work, and run through the stable Rust gateway. Memory, notes, passvault, cron, kanban, and curator stay available as first-class panes.</pre>
 </article>
-<article class="agent-event" data-channel="approval" data-kind="empty">
+<article class="agent-event agent-event-tool" data-channel="approval" data-kind="empty">
   <div class="agent-event-head">
-    <span class="agent-channel">approval.lane</span>
+    <span class="agent-channel">co-work queue</span>
     <span class="agent-time">no pending asks</span>
   </div>
   <div class="agent-request">
@@ -453,9 +661,9 @@ fn render_timeline(prompt: &str, outcome: &AgentOutcome) -> String {
     let status = if outcome.ok { "complete" } else { "error" };
     let tool_event = if outcome.was_gateway_attempted() {
         format!(
-            r#"<article class="agent-event" data-channel="tool_call" data-kind="gateway.query" data-tool-call-id="{tool_call_id}">
+            r#"<article class="agent-event agent-event-tool" data-channel="tool_call" data-kind="gateway.query" data-tool-call-id="{tool_call_id}">
   <div class="agent-event-head">
-    <span class="agent-channel">tool_call.gateway.query</span>
+    <span class="agent-channel">gateway query</span>
     <span class="agent-time">{status}</span>
   </div>
   <dl class="agent-tool-grid">
@@ -471,15 +679,15 @@ fn render_timeline(prompt: &str, outcome: &AgentOutcome) -> String {
     };
 
     format!(
-        r#"<article class="agent-event" data-channel="user" data-kind="message">
+        r#"<article class="agent-event agent-event-user" data-channel="user" data-kind="message">
   <div class="agent-event-head">
-    <span class="agent-channel">user.command</span>
+    <span class="agent-channel">you</span>
     <span class="agent-time">submitted</span>
   </div>
   <pre>{prompt}</pre>
 </article>
 {tool_event}
-<article class="{status_class}" data-channel="final" data-kind="{status}">
+<article class="{status_class} agent-event-assistant" data-channel="final" data-kind="{status}">
   <div class="agent-event-head">
     <span class="agent-channel">{channel}</span>
     <span class="agent-time">{latency} ms</span>
@@ -490,9 +698,9 @@ fn render_timeline(prompt: &str, outcome: &AgentOutcome) -> String {
         tool_event = tool_event,
         status_class = status_class,
         channel = if outcome.ok {
-            "final.response"
+            "AkurAI-RustAgent"
         } else {
-            "error.gateway"
+            "gateway error"
         },
         latency = outcome.latency_ms.unwrap_or_default(),
         response = esc_html(&outcome.response),
@@ -530,7 +738,25 @@ fn render_context(user: &AuthUser) -> String {
     format!(
         r#"<div class="agent-context-grid">
   <section class="agent-context-card">
-    <h3>Identity</h3>
+    <h3>Run progress</h3>
+    <p>The HTTP gateway is stable. Rich event streaming and approvals will attach to this lane when exposed by RustAgent.</p>
+    <div class="agent-progress">
+      <div class="agent-progress-row"><span class="agent-progress-dot">1</span><span>Tenant session scoped</span></div>
+      <div class="agent-progress-row"><span class="agent-progress-dot">2</span><span>Gateway query ready</span></div>
+      <div class="agent-progress-row"><span class="agent-progress-dot">3</span><span>Tool receipts reserved</span></div>
+    </div>
+  </section>
+  <section class="agent-context-card">
+    <h3>Artifacts</h3>
+    <p>Diffs, previews, files, tables, and generated outputs will render here instead of being buried in chat text.</p>
+    <ul>
+      <li>Code previews</li>
+      <li>Tool output cards</li>
+      <li>Curator reports</li>
+    </ul>
+  </section>
+  <section class="agent-context-card">
+    <h3>Context</h3>
     <p>{email}</p>
     <ul>
       <li class="mono">{tenant}</li>
@@ -542,14 +768,14 @@ fn render_context(user: &AuthUser) -> String {
     <h3>Persistent workspace</h3>
     <p>Memory, notes, and passvault stay RustAgent-owned and tenant scoped.</p>
     <ul>
-      <li>Memory: first-class context</li>
-      <li>Notes: durable operator knowledge</li>
-      <li>Passvault: sealed credentials</li>
+      <li>Memory context</li>
+      <li>Durable notes</li>
+      <li>Sealed passvault</li>
     </ul>
   </section>
   <section class="agent-context-card">
-    <h3>Pending asks</h3>
-    <p>No active confirmations. Future receipts map directly to the matching response method.</p>
+    <h3>Pending confirmations</h3>
+    <p>No active asks. Future receipts map directly to the matching response method.</p>
     <div class="agent-request">
       <span>approval.respond</span>
       <span>clarify.respond</span>
@@ -558,8 +784,8 @@ fn render_context(user: &AuthUser) -> String {
     </div>
   </section>
   <section class="agent-context-card">
-    <h3>Automation ecosystem</h3>
-    <p>Cron, kanban, and curator surfaces are reserved as durable panes, not plain chat transcripts.</p>
+    <h3>Co-work boards</h3>
+    <p>Cron, kanban, and curator surfaces stay durable panes, not plain chat transcripts.</p>
   </section>
 </div>"#,
         email = esc_html(&user.email),
@@ -601,7 +827,7 @@ mod tests {
         assert!(html.contains("Passvault"));
         assert!(html.contains("Kanban"));
         assert!(html.contains("approval.request"));
-        assert!(html.contains("tool_call"));
+        assert!(html.contains("tools"));
     }
 
     #[test]
