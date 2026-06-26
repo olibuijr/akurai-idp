@@ -738,7 +738,7 @@ pub fn console_page(title: &str, body: &str) -> String {
   <header class="console-topbar">
     {WORDMARK}
     <div class="console-status">
-      <span class="console-dot">auth.olibuijr.com</span>
+      <span class="console-dot">agent.olibuijr.com</span>
       <span class="console-dot">AkurAI-RustAgent</span>
     </div>
   </header>

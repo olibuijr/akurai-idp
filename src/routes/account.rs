@@ -8,6 +8,7 @@ use axum::{
 use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::config;
 use crate::db::with_db;
 use crate::lib::audit::{
     log_audit_event, SESSION_REVOKED, USER_MFA_DISABLED, USER_MFA_ENABLED,
@@ -144,6 +145,7 @@ async fn account_overview(headers: HeaderMap) -> Response {
         r#"<span class="badge badge-warn">Disabled</span>"#
     };
 
+    let agent_url = &config::get().agent_public_url;
     let body = format!(
         r#"<h2>Account overview</h2>
 <dl>
@@ -157,13 +159,14 @@ async fn account_overview(headers: HeaderMap) -> Response {
     <li><a href="/account/password">Change password</a></li>
     <li><a href="/account/mfa">Two-factor authentication</a></li>
     <li><a href="/account/sessions">Active sessions</a></li>
-    <li><a href="/agent">Agent console</a></li>
+    <li><a href="{agent_url}">Agent console</a></li>
     <li><a href="/logout">Sign out</a></li>
   </ul>
 </nav>"#,
         email = esc_html(&user.email),
         tenant = esc_html(&tenant_name),
         sessions = session_count,
+        agent_url = esc_html(agent_url),
     );
 
     Html(account_page("Account", &body)).into_response()

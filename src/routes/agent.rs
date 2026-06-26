@@ -99,7 +99,7 @@ fn agent_body(user: &AuthUser, csrf: &str, prompt: &str, outcome: Option<AgentOu
   </div>
 
   <div class="agent-grid">
-    <form class="agent-command" method="post" action="/agent">
+    <form class="agent-command" method="post" action="">
       <input type="hidden" name="_csrf" value="{csrf}">
       <label for="prompt">Command</label>
       <textarea id="prompt" name="prompt" rows="9" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" placeholder="Ask Rust Agent...">{prompt}</textarea>

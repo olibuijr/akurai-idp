@@ -41,6 +41,7 @@ CC_x86_64_unknown_linux_musl=musl-gcc cargo build --release --target x86_64-unkn
 | `IDP_DB_PATH` | `./data/idp.sqlite` | SQLite database path |
 | `IDP_BASE_URL` | `https://auth.olibuijr.com` | Public issuer URL |
 | `IDP_ADMIN_TOKEN` | *(empty)* | Bearer token for admin API |
+| `IDP_AGENT_PUBLIC_URL` | `https://agent.olibuijr.com` | Public URL for the tenant agent console |
 | `IDP_AGENT_GATEWAY_URL` | `http://127.0.0.1:8644/query` | Rust Agent gateway query endpoint |
 | `IDP_AGENT_ALLOWED_EMAILS` | `olibuijr@olibuijr.com` | Comma-separated console allowlist, or `*` |
 | `IDP_AGENT_PROVIDER` | `openai-codex` | Agent provider sent to the gateway |

@@ -5,6 +5,7 @@ pub struct Config {
     pub listen_addr: String,
     pub base_url: String,
     pub admin_token: String,
+    pub agent_public_url: String,
     pub agent_gateway_url: String,
     pub agent_allowed_emails: Vec<String>,
     pub agent_provider: String,
@@ -25,6 +26,10 @@ static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             .trim_end_matches('/')
             .to_string(),
         admin_token: std::env::var("IDP_ADMIN_TOKEN").unwrap_or_default(),
+        agent_public_url: std::env::var("IDP_AGENT_PUBLIC_URL")
+            .unwrap_or_else(|_| "https://agent.olibuijr.com".to_string())
+            .trim_end_matches('/')
+            .to_string(),
         agent_gateway_url: std::env::var("IDP_AGENT_GATEWAY_URL")
             .unwrap_or_else(|_| "http://127.0.0.1:8644/query".to_string()),
         agent_allowed_emails: parse_csv_env("IDP_AGENT_ALLOWED_EMAILS", "olibuijr@olibuijr.com"),
