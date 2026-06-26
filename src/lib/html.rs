@@ -69,30 +69,30 @@ const BASE_STYLES: &str = r#"
   /* ── Tokens ── */
   :root {
     --bg:           #080A0D;
-    --surface:      rgba(18, 23, 31, .76);
-    --surface-2:    rgba(28, 36, 48, .7);
-    --primary:      #F8FAFC;
-    --secondary:    #67E8F9;
+    --surface:      color-mix(in srgb, var(--panel, #12171f) 84%, transparent);
+    --surface-2:    color-mix(in srgb, var(--panel-2, #1c2430) 78%, transparent);
+    --primary:      var(--fg, #F8FAFC);
+    --secondary:    var(--accent-2, #67E8F9);
     --accent:       #B7F36B;
     --accent-2:     #F7C948;
-    --muted:        rgba(148, 163, 184, .14);
+    --muted-bg:     color-mix(in srgb, var(--panel-2, #1c2430) 38%, transparent);
     --border:       rgba(203, 213, 225, .22);
-    --border-light: rgba(203, 213, 225, .12);
-    --ink:          #EEF6FF;
-    --ink-muted:    #A9B8C8;
-    --ink-faint:    #748398;
-    --error-bg:     rgba(127, 29, 29, .26);
-    --error-border: rgba(248, 113, 113, .34);
-    --error-ink:    #FCA5A5;
-    --success-bg:   rgba(20, 83, 45, .26);
-    --success-border:rgba(134, 239, 172, .34);
-    --success-ink:  #BBF7D0;
-    --info-bg:      rgba(8, 145, 178, .22);
-    --info-border:  rgba(103, 232, 249, .34);
-    --info-ink:     #A5F3FC;
-    --warn-bg:      rgba(120, 53, 15, .24);
-    --warn-border:  rgba(251, 191, 36, .34);
-    --warn-ink:     #FDE68A;
+    --border-light: color-mix(in srgb, var(--border) 55%, transparent);
+    --ink:          var(--fg, #EEF6FF);
+    --ink-muted:    var(--muted, #A9B8C8);
+    --ink-faint:    color-mix(in srgb, var(--muted, #748398) 72%, var(--bg));
+    --error-bg:     color-mix(in srgb, var(--danger, #FCA5A5) 18%, transparent);
+    --error-border: color-mix(in srgb, var(--danger, #FCA5A5) 42%, transparent);
+    --error-ink:    color-mix(in srgb, var(--danger, #FCA5A5) 84%, var(--fg, #EEF6FF));
+    --success-bg:   color-mix(in srgb, var(--ok, #BBF7D0) 16%, transparent);
+    --success-border:color-mix(in srgb, var(--ok, #BBF7D0) 42%, transparent);
+    --success-ink:  color-mix(in srgb, var(--ok, #BBF7D0) 82%, var(--fg, #EEF6FF));
+    --info-bg:      color-mix(in srgb, var(--info, #A5F3FC) 16%, transparent);
+    --info-border:  color-mix(in srgb, var(--info, #A5F3FC) 42%, transparent);
+    --info-ink:     color-mix(in srgb, var(--info, #A5F3FC) 82%, var(--fg, #EEF6FF));
+    --warn-bg:      color-mix(in srgb, var(--warn, #FDE68A) 18%, transparent);
+    --warn-border:  color-mix(in srgb, var(--warn, #FDE68A) 42%, transparent);
+    --warn-ink:     color-mix(in srgb, var(--warn, #FDE68A) 82%, var(--fg, #EEF6FF));
     --radius-sm:    6px;
     --radius:       12px;
     --radius-lg:    18px;
@@ -237,7 +237,7 @@ const BASE_STYLES: &str = r#"
   .btn-danger:hover  { background: #7F1D1D; box-shadow: 0 4px 14px rgba(127,29,29,.25); }
 
   .btn-ghost   { background: transparent; color: var(--secondary); border: 1.5px solid var(--border); }
-  .btn-ghost:hover   { background: var(--muted); }
+  .btn-ghost:hover   { background: var(--muted-bg); }
 
   .btn-full    { width: 100%; }
   .btn-sm      { padding: 0.4rem 0.75rem; font-size: 0.8125rem; }
@@ -418,7 +418,6 @@ pub fn auth_page(locale: Locale, title: &str, body: &str) -> String {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/themes.css" />
   <style>
     {BASE_STYLES}
     body {{
@@ -441,6 +440,7 @@ pub fn auth_page(locale: Locale, title: &str, body: &str) -> String {
     .trust-footer {{ margin-top: 2.5rem; }}
     @media (max-width: 480px) {{ .card {{ padding: 2rem 1.5rem; }} }}
   </style>
+  <link rel="stylesheet" href="/themes.css" />
   <script type="module" src="/theme.js"></script>
   <script type="module" src="/lang.js"></script>
 </head>
@@ -505,7 +505,7 @@ const ACCOUNT_EXTRA_STYLES: &str = r#"
       border: 1.5px solid transparent;
       transition: color var(--transition), border-color var(--transition), background var(--transition);
     }
-    .account-nav a:hover  { color: var(--primary); background: var(--muted); }
+    .account-nav a:hover  { color: var(--primary); background: var(--muted-bg); }
     .account-nav a.active { color: var(--secondary); border-color: var(--border); background: var(--surface); font-weight: 600; }
     .account-nav a:focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
 
@@ -537,7 +537,7 @@ const ACCOUNT_EXTRA_STYLES: &str = r#"
       font-weight: 600;
     }
     .badge-green, .badge-ok { background: var(--success-bg); color: var(--success-ink); border: 1px solid var(--success-border); }
-    .badge-gray  { background: var(--muted); color: var(--ink-muted); }
+    .badge-gray  { background: var(--muted-bg); color: var(--ink-muted); }
     .badge-blue  { background: #DBEAFE; color: #1E40AF; }
     .badge-warn  { background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-border); }
 
@@ -573,7 +573,7 @@ const ACCOUNT_EXTRA_STYLES: &str = r#"
     /* ── Code / monospace ── */
     code {
       font-family: ui-monospace, "Cascadia Code", monospace;
-      background: var(--muted);
+      background: var(--muted-bg);
       padding: 0.15rem 0.4rem;
       border-radius: 4px;
       font-size: 0.85rem;
@@ -600,7 +600,7 @@ const ACCOUNT_EXTRA_STYLES: &str = r#"
     .backup-codes code {
       display: block;
       padding: 0.4rem 0.5rem;
-      background: var(--muted);
+      background: var(--muted-bg);
       border-radius: var(--radius-sm);
       text-align: center;
     }
@@ -641,11 +641,11 @@ pub fn account_page(locale: Locale, title: &str, body: &str) -> String {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/themes.css" />
   <style>
     {BASE_STYLES}
     {ACCOUNT_EXTRA_STYLES}
   </style>
+  <link rel="stylesheet" href="/themes.css" />
   <script type="module" src="/theme.js"></script>
   <script type="module" src="/lang.js"></script>
 </head>
