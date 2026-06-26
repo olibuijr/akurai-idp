@@ -664,13 +664,20 @@ pub fn console_page_with_theme(
         .filter(|theme| !theme.is_empty())
         .map(|theme| format!(r#" data-theme="{}""#, esc_html(theme)))
         .unwrap_or_default();
+    let theme_default = theme
+        .filter(|theme| {
+            theme
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
+        })
+        .unwrap_or("");
     format!(
         r#"<!DOCTYPE html>
 <html lang="en"{theme_attr}>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script>(function(){{try{{var m=document.cookie.match(/(?:^|; )akurai-theme=([^;]*)/);var t=(m?decodeURIComponent(m[1]):null)||localStorage.getItem("akurai-theme");if(!t)t=matchMedia("(prefers-color-scheme: light)").matches?"akurai-light":"akurai";document.documentElement.setAttribute("data-theme",t);}}catch(e){{}}}})()</script>
+  <script>(function(){{try{{var d="{theme_default}";var m=document.cookie.match(/(?:^|; )akurai-theme=([^;]*)/);var t=(m?decodeURIComponent(m[1]):null)||d||localStorage.getItem("akurai-theme");if(!t)t=matchMedia("(prefers-color-scheme: light)").matches?"akurai-light":"akurai";document.documentElement.setAttribute("data-theme",t);}}catch(e){{}}}})()</script>
   <title>{title} — AkurAI ID</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -705,6 +712,7 @@ pub fn console_page_with_theme(
         CONSOLE_EXTRA_STYLES = CONSOLE_EXTRA_STYLES,
         extra_styles = extra_styles,
         theme_attr = theme_attr,
+        theme_default = theme_default,
         WORDMARK = WORDMARK,
         body = body,
     )

@@ -71,8 +71,8 @@ function hasExplicitChoice() {
 export function currentTheme() {
   return (
     readCookie() ||
-    safeLocal() ||
     document.documentElement.getAttribute("data-theme") ||
+    safeLocal() ||
     defaultTheme()
   );
 }
