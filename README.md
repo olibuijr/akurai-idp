@@ -13,7 +13,7 @@ Lightweight Rust OIDC/OAuth2 identity provider for [AkurAI](https://github.com/o
 - Multi-tenant: users, groups, clients isolated by tenant
 - Admin REST API with bearer token auth
 - Browser UI: login, MFA, account settings (password, MFA, sessions)
-- Authenticated agent console at `/agent` for AkurAI-RustAgent interaction
+- Authenticated agent workspace at `/agent` for AkurAI-RustAgent interaction
 - Rate limiting, CSRF protection, security headers
 - SQLite storage (WAL mode)
 
@@ -38,6 +38,12 @@ The dedicated tenant agent host uses the tracked nginx vhost at
 to the authenticated agent console route. The auth-domain redirect snippet at
 `ops/nginx/auth-agent-redirect.conf` keeps the old `/agent` URL off
 `auth.olibuijr.com`.
+
+The first workspace slice is server-rendered and uses the stable RustAgent
+`/query` gateway. It exposes channel/timeline, approval/question placeholders,
+and durable context panes for memory, notes, passvault, cron, kanban, and
+curator without assuming streaming or WebSocket support from the deployed
+gateway.
 
 ## Configuration
 

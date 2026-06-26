@@ -621,103 +621,18 @@ const CONSOLE_EXTRA_STYLES: &str = r#"
       opacity: .75;
     }
     .console-card > * { position: relative; }
-    .agent-console { padding: 1.2rem; }
-    .agent-rail {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .5rem;
-      padding: .2rem .2rem 1rem;
-    }
-    .agent-chip {
-      border: 1px solid var(--border);
-      background: rgba(255,255,255,.055);
-      color: var(--ink-muted);
-      border-radius: 999px;
-      padding: .35rem .65rem;
-      font-size: .78rem;
-      font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-      max-width: 100%;
-      overflow-wrap: anywhere;
-    }
-    .agent-chip-live { color: var(--accent); border-color: rgba(183,243,107,.3); }
-    .agent-grid {
-      display: grid;
-      grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
-      gap: 1rem;
-      align-items: stretch;
-    }
-    .agent-command, .agent-output {
-      min-width: 0;
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      background: rgba(5,8,12,.48);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.055), inset 0 -18px 42px rgba(0,0,0,.22);
-      padding: 1rem;
-    }
-    .agent-command label {
-      font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-      color: var(--accent);
-    }
-    .agent-command textarea { min-height: 320px; }
-    .agent-command-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-    .agent-output {
-      display: flex;
-      flex-direction: column;
-      min-height: 420px;
-    }
-    .agent-output-kicker {
-      color: var(--accent);
-      font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: .78rem;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      margin-bottom: .65rem;
-    }
-    .agent-output-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .45rem;
-      margin-bottom: .85rem;
-    }
-    .agent-output-meta span {
-      color: var(--ink-faint);
-      border: 1px solid var(--border-light);
-      border-radius: 999px;
-      padding: .22rem .5rem;
-      font-size: .72rem;
-      font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-    }
-    .agent-output pre {
-      flex: 1;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      color: var(--ink);
-      font: 0.9rem/1.65 ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-    }
-    .agent-output-empty pre { color: var(--ink-faint); }
-    .agent-output-error {
-      border-color: var(--error-border);
-      background: rgba(69, 10, 10, .24);
-    }
-    .agent-output-error .agent-output-kicker,
-    .agent-output-error pre { color: var(--error-ink); }
     @media (max-width: 860px) {
       body { padding: 1rem; }
       .console-topbar { align-items: flex-start; flex-direction: column; }
       .console-status { justify-content: flex-start; }
-      .agent-grid { grid-template-columns: 1fr; }
-      .agent-command textarea { min-height: 220px; }
-      .agent-output { min-height: 260px; }
     }
 "#;
 
 pub fn console_page(title: &str, body: &str) -> String {
+    console_page_with_styles(title, body, "")
+}
+
+pub fn console_page_with_styles(title: &str, body: &str, extra_styles: &str) -> String {
     format!(
         r#"<!DOCTYPE html>
 <html lang="en">
@@ -731,6 +646,7 @@ pub fn console_page(title: &str, body: &str) -> String {
   <style>
     {BASE_STYLES}
     {CONSOLE_EXTRA_STYLES}
+    {extra_styles}
   </style>
 </head>
 <body>
@@ -751,6 +667,7 @@ pub fn console_page(title: &str, body: &str) -> String {
         title = esc_html(title),
         BASE_STYLES = BASE_STYLES,
         CONSOLE_EXTRA_STYLES = CONSOLE_EXTRA_STYLES,
+        extra_styles = extra_styles,
         WORDMARK = WORDMARK,
         body = body,
     )

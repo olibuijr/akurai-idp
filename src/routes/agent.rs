@@ -7,14 +7,16 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
+use std::time::Instant;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 use crate::config;
-use crate::lib::html::{console_page, esc_html};
+use crate::lib::html::console_page_with_styles;
 use crate::middleware::auth::AuthUser;
+use crate::routes::agent_view::{AGENT_OS_STYLES, agent_body, forbidden_body};
 
-const MAX_PROMPT_CHARS: usize = 8_000;
+pub(crate) const MAX_PROMPT_CHARS: usize = 8_000;
 const MAX_RESPONSE_BYTES: usize = 512 * 1024;
 
 pub fn router() -> Router {
@@ -32,9 +34,10 @@ async fn agent_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) ->
         return forbidden_page(&user);
     }
     let csrf = csrf_cookie(&headers).unwrap_or_default();
-    Html(console_page(
+    Html(console_page_with_styles(
         "Agent Console",
         &agent_body(&user, &csrf, "", None),
+        AGENT_OS_STYLES,
     ))
     .into_response()
 }
@@ -53,17 +56,19 @@ async fn agent_submit(
     let prompt = prompt.trim();
     if prompt.is_empty() {
         let outcome = AgentOutcome::error("Prompt is empty.");
-        return Html(console_page(
+        return Html(console_page_with_styles(
             "Agent Console",
-            &agent_body(&user, &csrf, prompt, Some(outcome)),
+            &agent_body(&user, &csrf, prompt, Some(&outcome)),
+            AGENT_OS_STYLES,
         ))
         .into_response();
     }
     if prompt.chars().count() > MAX_PROMPT_CHARS {
         let outcome = AgentOutcome::error("Prompt is too long for this console.");
-        return Html(console_page(
+        return Html(console_page_with_styles(
             "Agent Console",
-            &agent_body(&user, &csrf, prompt, Some(outcome)),
+            &agent_body(&user, &csrf, prompt, Some(&outcome)),
+            AGENT_OS_STYLES,
         ))
         .into_response();
     }
@@ -72,118 +77,41 @@ async fn agent_submit(
         Ok(outcome) => outcome,
         Err(error) => AgentOutcome::error(&error),
     };
-    Html(console_page(
+    Html(console_page_with_styles(
         "Agent Console",
-        &agent_body(&user, &csrf, prompt, Some(outcome)),
+        &agent_body(&user, &csrf, prompt, Some(&outcome)),
+        AGENT_OS_STYLES,
     ))
     .into_response()
 }
 
-fn agent_body(user: &AuthUser, csrf: &str, prompt: &str, outcome: Option<AgentOutcome>) -> String {
-    let cfg = config::get();
-    let response_html = outcome.map(render_outcome).unwrap_or_else(|| {
-        r#"<section class="agent-output agent-output-empty" aria-live="polite">
-  <div class="agent-output-kicker">Ready</div>
-  <pre>Awaiting input.</pre>
-</section>"#
-            .to_string()
-    });
-
-    format!(
-        r#"<section class="agent-console" aria-label="AkurAI agent console">
-  <div class="agent-rail">
-    <div class="agent-chip agent-chip-live">Authenticated</div>
-    <div class="agent-chip">{email}</div>
-    <div class="agent-chip">{provider}</div>
-    <div class="agent-chip">{model}</div>
-  </div>
-
-  <div class="agent-grid">
-    <form class="agent-command" method="post" action="">
-      <input type="hidden" name="_csrf" value="{csrf}">
-      <label for="prompt">Command</label>
-      <textarea id="prompt" name="prompt" rows="9" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" placeholder="Ask Rust Agent...">{prompt}</textarea>
-      <div class="agent-command-footer">
-        <a class="action-link" href="/account">Account</a>
-        <button type="submit" class="btn btn-primary">Run</button>
-      </div>
-    </form>
-
-    {response_html}
-  </div>
-</section>"#,
-        csrf = esc_html(csrf),
-        email = esc_html(&user.email),
-        provider = esc_html(&cfg.agent_provider),
-        model = esc_html(&cfg.agent_model),
-        max_prompt = MAX_PROMPT_CHARS,
-        prompt = esc_html(prompt),
-    )
-}
-
-fn render_outcome(outcome: AgentOutcome) -> String {
-    let class = if outcome.ok {
-        "agent-output"
-    } else {
-        "agent-output agent-output-error"
-    };
-    let meta = if outcome.ok {
-        format!(
-            r#"<div class="agent-output-meta">
-  <span>{provider}</span><span>{model}</span><span>{session}</span><span>job {job}</span>
-</div>"#,
-            provider = esc_html(&outcome.provider),
-            model = esc_html(&outcome.model),
-            session = esc_html(&outcome.session_id),
-            job = outcome.job_id.unwrap_or_default(),
-        )
-    } else {
-        String::new()
-    };
-
-    format!(
-        r#"<section class="{class}" aria-live="polite">
-  <div class="agent-output-kicker">{kicker}</div>
-  {meta}
-  <pre>{response}</pre>
-</section>"#,
-        class = class,
-        kicker = if outcome.ok { "Response" } else { "Error" },
-        meta = meta,
-        response = esc_html(&outcome.response),
-    )
-}
-
 fn forbidden_page(user: &AuthUser) -> Response {
-    let body = format!(
-        r#"<section class="agent-console">
-  <div class="agent-output agent-output-error">
-    <div class="agent-output-kicker">Access denied</div>
-    <pre>{email} is not enabled for the AkurAI agent console.</pre>
-  </div>
-  <p class="page-footer"><a href="/account">Back to account</a></p>
-</section>"#,
-        email = esc_html(&user.email),
-    );
     (
         StatusCode::FORBIDDEN,
-        Html(console_page("Agent Console", &body)),
+        Html(console_page_with_styles(
+            "Agent Console",
+            &forbidden_body(user),
+            AGENT_OS_STYLES,
+        )),
     )
         .into_response()
 }
 
 async fn query_agent(user: &AuthUser, prompt: &str) -> Result<AgentOutcome, String> {
     let cfg = config::get();
+    let scope_id = format!("idp:{}", user.tenant_id);
+    let session_id = format!("idp:{}:agent", user.email);
     let body = json!({
         "prompt": prompt,
         "provider": cfg.agent_provider,
         "model": cfg.agent_model,
-        "scope_id": format!("idp:{}", user.tenant_id),
-        "session_id": format!("idp:{}:agent", user.email),
+        "scope_id": scope_id,
+        "session_id": session_id,
         "user": user.email,
     });
+    let started = Instant::now();
     let response = post_json(&cfg.agent_gateway_url, &body.to_string()).await?;
-    AgentOutcome::from_gateway_json(&response)
+    AgentOutcome::from_gateway_json(&response, started.elapsed().as_millis() as u64)
 }
 
 async fn post_json(url: &str, body: &str) -> Result<String, String> {
@@ -249,13 +177,15 @@ fn csrf_cookie(headers: &HeaderMap) -> Option<String> {
 }
 
 #[derive(Debug, Clone)]
-struct AgentOutcome {
-    ok: bool,
-    response: String,
-    provider: String,
-    model: String,
-    session_id: String,
-    job_id: Option<i64>,
+pub(crate) struct AgentOutcome {
+    pub ok: bool,
+    pub response: String,
+    pub provider: String,
+    pub model: String,
+    pub scope_id: String,
+    pub session_id: String,
+    pub job_id: Option<i64>,
+    pub latency_ms: Option<u64>,
 }
 
 impl AgentOutcome {
@@ -265,12 +195,24 @@ impl AgentOutcome {
             response: message.to_string(),
             provider: String::new(),
             model: String::new(),
+            scope_id: String::new(),
             session_id: String::new(),
             job_id: None,
+            latency_ms: None,
         }
     }
 
-    fn from_gateway_json(raw: &str) -> Result<Self, String> {
+    pub(crate) fn tool_call_id(&self) -> String {
+        self.job_id
+            .map(|job_id| format!("gateway-query-{job_id}"))
+            .unwrap_or_else(|| "gateway-query-local".to_string())
+    }
+
+    pub(crate) fn was_gateway_attempted(&self) -> bool {
+        self.latency_ms.is_some()
+    }
+
+    fn from_gateway_json(raw: &str, latency_ms: u64) -> Result<Self, String> {
         let value: Value = serde_json::from_str(raw)
             .map_err(|error| format!("Agent gateway JSON parse failed: {error}"))?;
         if value.get("status").and_then(Value::as_str) != Some("ok") {
@@ -297,12 +239,18 @@ impl AgentOutcome {
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_string(),
+            scope_id: value
+                .get("scope_id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string(),
             session_id: value
                 .get("session_id")
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_string(),
             job_id: value.get("job_id").and_then(Value::as_i64),
+            latency_ms: Some(latency_ms),
         })
     }
 }
@@ -366,11 +314,14 @@ mod tests {
     #[test]
     fn parses_gateway_json_response() {
         let outcome = AgentOutcome::from_gateway_json(
-            r#"{"status":"ok","provider":"openai-codex","model":"gpt-5.4-mini","session_id":"s","job_id":7,"response":"hello"}"#,
+            r#"{"status":"ok","provider":"openai-codex","model":"gpt-5.4-mini","scope_id":"scope","session_id":"s","job_id":7,"response":"hello"}"#,
+            123,
         )
         .unwrap();
         assert!(outcome.ok);
         assert_eq!(outcome.response, "hello");
+        assert_eq!(outcome.scope_id, "scope");
         assert_eq!(outcome.job_id, Some(7));
+        assert_eq!(outcome.latency_ms, Some(123));
     }
 }

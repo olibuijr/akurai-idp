@@ -1,6 +1,7 @@
 pub mod account;
 pub mod admin;
 pub mod agent;
+pub(crate) mod agent_view;
 pub mod auth_pages;
 pub mod authorize;
 pub mod introspect;

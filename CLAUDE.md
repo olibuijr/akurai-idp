@@ -25,6 +25,7 @@ nginx (TLS, auth.olibuijr.com) → akurai-idp (:3500) → SQLite
 - `src/routes/` — OIDC endpoints (authorize, token, introspect, revoke, userinfo, well-known)
 - `src/routes/auth_pages.rs` — login, MFA, logout HTML pages
 - `src/routes/account.rs` — password change, MFA setup, session management
+- `src/routes/agent.rs` + `src/routes/agent_view.rs` — authenticated AkurAI-RustAgent workspace over the stable `/query` gateway
 - `src/routes/admin/` — REST API for users, groups, tenants, clients, audit log
 
 ## Environment Variables
