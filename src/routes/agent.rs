@@ -34,12 +34,12 @@ async fn agent_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) ->
         return forbidden_page(&headers, &user);
     }
     let csrf = csrf_cookie(&headers).unwrap_or_default();
-    let theme = suite_theme_cookie(&headers);
+    let theme = agent_theme(&headers);
     Html(console_page_with_theme(
         "Agent Console",
         &agent_body(&user, &csrf, "", None),
         AGENT_OS_STYLES,
-        theme.as_deref(),
+        Some(&theme),
     ))
     .into_response()
 }
@@ -54,7 +54,7 @@ async fn agent_submit(
     }
 
     let csrf = csrf_cookie(&headers).unwrap_or_default();
-    let theme = suite_theme_cookie(&headers);
+    let theme = agent_theme(&headers);
     let prompt = form.prompt.unwrap_or_default();
     let prompt = prompt.trim();
     if prompt.is_empty() {
@@ -63,7 +63,7 @@ async fn agent_submit(
             "Agent Console",
             &agent_body(&user, &csrf, prompt, Some(&outcome)),
             AGENT_OS_STYLES,
-            theme.as_deref(),
+            Some(&theme),
         ))
         .into_response();
     }
@@ -73,7 +73,7 @@ async fn agent_submit(
             "Agent Console",
             &agent_body(&user, &csrf, prompt, Some(&outcome)),
             AGENT_OS_STYLES,
-            theme.as_deref(),
+            Some(&theme),
         ))
         .into_response();
     }
@@ -86,20 +86,20 @@ async fn agent_submit(
         "Agent Console",
         &agent_body(&user, &csrf, prompt, Some(&outcome)),
         AGENT_OS_STYLES,
-        theme.as_deref(),
+        Some(&theme),
     ))
     .into_response()
 }
 
 fn forbidden_page(headers: &HeaderMap, user: &AuthUser) -> Response {
-    let theme = suite_theme_cookie(headers);
+    let theme = agent_theme(headers);
     (
         StatusCode::FORBIDDEN,
         Html(console_page_with_theme(
             "Agent Console",
             &forbidden_body(user),
             AGENT_OS_STYLES,
-            theme.as_deref(),
+            Some(&theme),
         )),
     )
         .into_response()
@@ -175,6 +175,10 @@ fn agent_allowed(email: &str) -> bool {
 
 fn csrf_cookie(headers: &HeaderMap) -> Option<String> {
     cookie_value(headers, "_csrf")
+}
+
+fn agent_theme(headers: &HeaderMap) -> String {
+    suite_theme_cookie(headers).unwrap_or_else(|| "claude-code".to_string())
 }
 
 fn suite_theme_cookie(headers: &HeaderMap) -> Option<String> {

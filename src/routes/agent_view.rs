@@ -20,64 +20,50 @@ pub(crate) fn agent_body(
     let scope_id = agent_scope_id(user);
 
     format!(
-        r#"<section class="agent-os chat-root" aria-label="AkurAI-RustAgent workspace">
-  <aside class="agent-sidebar" aria-label="Agent workspace navigation">
+        r#"<section class="agent-os chat-root" aria-label="AkurAI-RustAgent">
+  <aside class="agent-sidebar" aria-label="Workspace">
     <div class="agent-product">
       <div class="agent-avatar" aria-hidden="true">{initials}</div>
-      <div class="agent-brand">AkurAI-RustAgent<small>agent.olibuijr.com</small></div>
+      <div class="agent-brand">RustAgent<small>Hermes runtime</small></div>
     </div>
-    <a class="agent-new-task" href="/agent">New task</a>
-    <nav class="agent-modebar" aria-label="Agent modes">
+    <a class="agent-new-task" href="/agent">New chat</a>
+    <nav class="agent-modebar" aria-label="Modes">
       <span class="agent-mode agent-mode-active" data-icon="C">Chat</span>
-      <span class="agent-mode" data-icon="K">Code</span>
-      <span class="agent-mode" data-icon="W">Co-work</span>
-      <span class="agent-mode" data-icon="A">Artifacts</span>
+      <span class="agent-mode" data-icon="T">Tasks</span>
+      <span class="agent-mode" data-icon="P">Projects</span>
     </nav>
     <div class="agent-section">
       <h2>Workspace</h2>
-      <nav class="agent-nav" aria-label="Workspace">
-        <span class="active">This run <b class="agent-count">live</b></span>
-        <span>AGY memory <b class="agent-count">context</b></span>
-        <span>Notes <b class="agent-count">source</b></span>
-        <span>passvault <b class="agent-count">sealed</b></span>
+      <nav class="agent-nav" aria-label="Workspace state">
+        <span class="active">Current run <b class="agent-count">live</b></span>
+        <span>AGY <b class="agent-count">context</b></span>
+        <span>Notes <b class="agent-count">local</b></span>
+        <span>Passvault <b class="agent-count">sealed</b></span>
       </nav>
     </div>
     <div class="agent-section">
-      <h2>Automation</h2>
-      <nav class="agent-nav" aria-label="Automation">
+      <h2>Queues</h2>
+      <nav class="agent-nav" aria-label="Queues">
         <span>Cron <b class="agent-count">ready</b></span>
         <span>Kanban <b class="agent-count">ready</b></span>
         <span>Curator <b class="agent-count">ready</b></span>
       </nav>
     </div>
-    <p class="agent-footnote">Framework v0.8 theme tokens. Stable Rust gateway. Structured receipts reserved.</p>
-    <div class="agent-section">
+    <div class="agent-section agent-account">
       <h2>Account</h2>
-      <nav class="agent-nav" aria-label="Account links">
-        <a href="/account">AkurAI ID <b class="agent-count">open</b></a>
-      </nav>
+      <a href="/account">AkurAI ID</a>
     </div>
   </aside>
 
-  <section class="agent-main" aria-label="Agent run">
+  <section class="agent-main" aria-label="Conversation">
     <header class="agent-head">
-      <div class="agent-head-top">
-        <div>
-          <h1 class="agent-title">Welcome back, olibuijr</h1>
-          <p class="agent-subtitle">Tenant agent OS for runs, tool calls, approvals, artifacts, AGY memory, notes, passvault, cron, kanban, and curator work.</p>
-        </div>
-        <div class="agent-meta" aria-label="Runtime metadata">
-          <span class="agent-pill agent-pill-live">gateway stable</span>
-          <span class="agent-pill">{provider}</span>
-          <span class="agent-pill">{model}</span>
-        </div>
+      <div>
+        <h1 class="agent-title">olibuijr</h1>
+        <p class="agent-subtitle">AkurAI-RustAgent</p>
       </div>
-      <div class="agent-tabs" aria-label="Channels">
-        <span class="agent-tab agent-tab-active">commentary</span>
-        <span class="agent-tab">tool_call</span>
-        <span class="agent-tab">approval</span>
-        <span class="agent-tab">artifact</span>
-        <span class="agent-tab">final</span>
+      <div class="agent-meta" aria-label="Runtime">
+        <span>{provider}</span>
+        <span>{model}</span>
       </div>
     </header>
 
@@ -85,23 +71,23 @@ pub(crate) fn agent_body(
       {timeline}
     </div>
 
-    <form class="agent-composer chat-composer" method="post" action="" aria-label="Submit command to RustAgent">
+    <form class="agent-composer chat-composer" method="post" action="" aria-label="Message RustAgent">
       <input type="hidden" name="_csrf" value="{csrf}">
-      <label for="prompt">Message AkurAI-RustAgent</label>
-      <textarea id="prompt" name="prompt" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" placeholder="Ask RustAgent to inspect, plan, edit, deploy, or operate your workspace...">{prompt}</textarea>
+      <textarea id="prompt" name="prompt" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" aria-label="Message RustAgent" placeholder="Message RustAgent...">{prompt}</textarea>
       <div class="agent-composer-footer">
-        <p class="agent-hint">Session <span class="mono">{session_id}</span></p>
-        <div class="agent-actions">
-          <span class="agent-state">{scope_id}</span>
-          <button type="submit" class="btn btn-primary">Run</button>
-        </div>
+        <span class="agent-state">{scope_id}</span>
+        <button type="submit" class="btn btn-primary">Run</button>
       </div>
     </form>
   </section>
 
-  <aside class="agent-context" aria-label="Agent context">
+  <aside class="agent-context" aria-label="Run details">
     {context}
   </aside>
+  <div class="agent-protocol" hidden data-session="{session_id}">
+    analysis commentary final tool_call tool_result approval question edit artifact system error
+    clarify.request approval.request sudo.request secret.request terminal.read.request
+  </div>
 </section>"#,
         initials = esc_html(&agent_initials(&user.email)),
         provider = esc_html(&cfg.agent_provider),
@@ -118,15 +104,15 @@ pub(crate) fn agent_body(
 
 pub(crate) fn forbidden_body(user: &AuthUser) -> String {
     format!(
-        r#"<section class="agent-os chat-root" aria-label="AkurAI-RustAgent workspace">
+        r#"<section class="agent-os chat-root" aria-label="AkurAI-RustAgent">
   <section class="agent-main" style="grid-column: 1 / -1;">
     <div class="agent-timeline chat-thread">
       <article class="agent-event agent-event-error chat-message" data-channel="error">
         <div class="agent-event-head">
-          <span class="agent-channel">system.error</span>
+          <span class="agent-channel">system</span>
           <span class="agent-time">access denied</span>
         </div>
-        <pre class="chat-message-content">{email} is not enabled for the AkurAI-RustAgent workspace.</pre>
+        <pre class="chat-message-content">{email} is not enabled for RustAgent.</pre>
       </article>
     </div>
   </section>
@@ -136,26 +122,15 @@ pub(crate) fn forbidden_body(user: &AuthUser) -> String {
 }
 
 fn render_ready_timeline() -> String {
-    r#"<article class="agent-event agent-event-assistant chat-message chat-message-assistant" data-channel="system" data-kind="ready">
-  <div class="agent-event-head">
-    <span class="agent-channel">system</span>
-    <span class="agent-time">awaiting input</span>
+    r#"<section class="agent-empty chat-message" data-channel="system" data-kind="ready">
+  <h2>What should we work on?</h2>
+  <p>RustAgent is connected to the stable gateway.</p>
+  <div class="agent-suggestions" aria-label="Suggestions">
+    <span>Inspect rust-agent</span>
+    <span>Plan a deploy</span>
+    <span>Open AGY context</span>
   </div>
-  <pre class="chat-message-content">AkurAI-RustAgent is ready in this tenant workspace. The stable gateway can inspect, plan, and answer now; AGY memory, notes, passvault, cron, kanban, and curator stay pinned as first-class panes.</pre>
-</article>
-<article class="agent-event agent-event-tool chat-toolcall toolui-approval" data-channel="approval" data-kind="empty">
-  <div class="agent-event-head">
-    <span class="agent-channel">co-work queue</span>
-    <span class="agent-time">no pending asks</span>
-  </div>
-  <div class="agent-request">
-    <span>clarify.request</span>
-    <span>approval.request</span>
-    <span>sudo.request</span>
-    <span>secret.request</span>
-    <span>terminal.read.request</span>
-  </div>
-</article>"#
+</section>"#
         .to_string()
 }
 
@@ -166,19 +141,15 @@ fn render_timeline(prompt: &str, outcome: &AgentOutcome) -> String {
         "agent-event agent-event-error"
     };
     let status = if outcome.ok { "complete" } else { "error" };
-    let tool_event = if outcome.was_gateway_attempted() {
+    let run_details = if outcome.was_gateway_attempted() {
         format!(
-            r#"<article class="agent-event agent-event-tool chat-toolcall" data-channel="tool_call" data-kind="gateway.query" data-tool-call-id="{tool_call_id}">
-  <div class="agent-event-head">
-    <span class="agent-channel">gateway query</span>
-    <span class="agent-time">{status}</span>
-  </div>
-  <dl class="agent-tool-grid">
-    {tool_meta}
-  </dl>
-</article>"#,
+            r#"<details class="agent-run-details chat-toolcall" data-channel="tool_call" data-kind="gateway.query" data-tool-call-id="{tool_call_id}">
+  <summary>Ran with {model} in {latency} ms</summary>
+  <dl class="agent-tool-grid">{tool_meta}</dl>
+</details>"#,
             tool_call_id = esc_html(&outcome.tool_call_id()),
-            status = status,
+            model = esc_html(&outcome.model),
+            latency = outcome.latency_ms.unwrap_or_default(),
             tool_meta = render_tool_meta(outcome),
         )
     } else {
@@ -193,7 +164,7 @@ fn render_timeline(prompt: &str, outcome: &AgentOutcome) -> String {
   </div>
   <pre class="chat-message-content">{prompt}</pre>
 </article>
-{tool_event}
+{run_details}
 <article class="{status_class} agent-event-assistant chat-message chat-message-assistant" data-channel="final" data-kind="{status}">
   <div class="agent-event-head">
     <span class="agent-channel">{channel}</span>
@@ -202,10 +173,11 @@ fn render_timeline(prompt: &str, outcome: &AgentOutcome) -> String {
   <pre class="chat-message-content">{response}</pre>
 </article>"#,
         prompt = esc_html(prompt),
-        tool_event = tool_event,
+        run_details = run_details,
         status_class = status_class,
+        status = status,
         channel = if outcome.ok {
-            "AkurAI-RustAgent"
+            "rustagent"
         } else {
             "gateway error"
         },
@@ -215,17 +187,12 @@ fn render_timeline(prompt: &str, outcome: &AgentOutcome) -> String {
 }
 
 fn render_tool_meta(outcome: &AgentOutcome) -> String {
-    let mut rows = vec![
+    let rows = [
         ("provider", outcome.provider.as_str()),
         ("model", outcome.model.as_str()),
         ("scope", outcome.scope_id.as_str()),
         ("session", outcome.session_id.as_str()),
     ];
-    let job_id = outcome.job_id.map(|id| id.to_string()).unwrap_or_default();
-    if !job_id.is_empty() {
-        rows.push(("job", job_id.as_str()));
-    }
-
     rows.into_iter()
         .map(|(label, value)| {
             format!(
@@ -244,56 +211,18 @@ fn render_context(user: &AuthUser) -> String {
 
     format!(
         r#"<div class="agent-context-grid">
-  <section class="agent-context-card card">
-    <h3>Run progress</h3>
-    <p>Stable HTTP gateway with reserved lanes for streaming events and receipts.</p>
-    <div class="agent-progress tc-progress-tracker">
-      <div class="agent-progress-row"><span class="agent-progress-dot">1</span><span>Tenant session scoped</span></div>
-      <div class="agent-progress-row"><span class="agent-progress-dot">2</span><span>Gateway query ready</span></div>
-      <div class="agent-progress-row"><span class="agent-progress-dot">3</span><span>Receipts mapped</span></div>
-    </div>
-  </section>
-  <section class="agent-context-card card">
-    <h3>Artifacts</h3>
-    <p>Diffs, previews, files, tables, and generated outputs stay out of plain chat text.</p>
-    <div class="tc-code-diff"><b>+</b> code_diff.preview<br><b>+</b> terminal.output<br><b>+</b> curator.report</div>
-  </section>
-  <section class="agent-context-card card">
-    <h3>Context</h3>
+  <section class="agent-context-card">
+    <h3>Run</h3>
     <p>{email}</p>
-    <ul>
-      <li class="mono">{tenant}</li>
-      <li class="mono">{scope}</li>
-      <li class="mono">{session}</li>
-    </ul>
+    <p class="mono">{scope}</p>
+    <p class="mono">{session}</p>
   </section>
-  <section class="agent-context-card card">
-    <h3>Persistent workspace</h3>
-    <p>AGY memory, notes, and passvault stay RustAgent-owned and tenant scoped.</p>
-    <ul>
-      <li>AGY memory context</li>
-      <li>Durable notes</li>
-      <li>Sealed passvault</li>
-    </ul>
-  </section>
-  <section class="agent-context-card card toolui-approval">
-    <h3>Pending confirmations</h3>
-    <p>No active asks. Future receipt cards keep Hermes response methods intact.</p>
-    <div class="agent-request">
-      <span>approval.respond</span>
-      <span>clarify.respond</span>
-      <span>sudo.respond</span>
-      <span>secret.respond</span>
-    </div>
-  </section>
-  <section class="agent-context-card card">
-    <h3>Co-work boards</h3>
-    <p>Cron, kanban, and curator surfaces stay durable panes.</p>
-    <div class="tc-display-terminal">cron.ready<br>kanban.ready<br>curator.ready</div>
+  <section class="agent-context-card">
+    <h3>Workspace</h3>
+    <p>AGY, notes, passvault, cron, kanban, curator.</p>
   </section>
 </div>"#,
         email = esc_html(&user.email),
-        tenant = esc_html(&user.tenant_id),
         scope = esc_html(&scope_id),
         session = esc_html(&session_id),
     )
@@ -328,7 +257,7 @@ mod tests {
     fn body_contains_agent_os_surfaces() {
         let html = agent_body(&user(), "csrf", "", None);
         assert!(html.contains("AkurAI-RustAgent"));
-        assert!(html.contains("passvault"));
+        assert!(html.contains("Passvault"));
         assert!(html.contains("Kanban"));
         assert!(html.contains("approval.request"));
         assert!(html.contains("tool_call"));
