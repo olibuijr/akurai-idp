@@ -5,83 +5,109 @@ use crate::routes::agent::{AgentOutcome, MAX_PROMPT_CHARS};
 
 pub const AGENT_OS_STYLES: &str = include_str!("agent_os.css");
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AgentPage {
+    Chat,
+    Kanban,
+    Tools,
+    Run,
+    Tasks,
+    Projects,
+    Agy,
+    Notes,
+    Passvault,
+    Cron,
+    Curator,
+}
+
+impl AgentPage {
+    pub(crate) fn title(self) -> &'static str {
+        match self {
+            Self::Chat => "Current conversation",
+            Self::Kanban => "Kanban",
+            Self::Tools => "Tools",
+            Self::Run => "Run details",
+            Self::Tasks => "Tasks",
+            Self::Projects => "Projects",
+            Self::Agy => "AGY context",
+            Self::Notes => "Notes",
+            Self::Passvault => "Passvault",
+            Self::Cron => "Cron",
+            Self::Curator => "Curator",
+        }
+    }
+
+    fn path(self) -> &'static str {
+        match self {
+            Self::Chat => "/agent",
+            Self::Kanban => "/agent/kanban",
+            Self::Tools => "/agent/tools",
+            Self::Run => "/agent/run",
+            Self::Tasks => "/agent/tasks",
+            Self::Projects => "/agent/projects",
+            Self::Agy => "/agent/agy",
+            Self::Notes => "/agent/notes",
+            Self::Passvault => "/agent/passvault",
+            Self::Cron => "/agent/cron",
+            Self::Curator => "/agent/curator",
+        }
+    }
+}
+
 pub(crate) fn agent_body(
     user: &AuthUser,
     csrf: &str,
     prompt: &str,
     outcome: Option<&AgentOutcome>,
 ) -> String {
+    agent_page_body(user, csrf, AgentPage::Chat, prompt, outcome)
+}
+
+pub(crate) fn agent_static_page_body(user: &AuthUser, csrf: &str, page: AgentPage) -> String {
+    agent_page_body(user, csrf, page, "", None)
+}
+
+fn agent_page_body(
+    user: &AuthUser,
+    csrf: &str,
+    page: AgentPage,
+    prompt: &str,
+    outcome: Option<&AgentOutcome>,
+) -> String {
     let cfg = config::get();
-    let timeline = match outcome {
-        Some(outcome) => render_timeline(prompt, outcome),
-        None => render_ready_timeline(),
-    };
     let session_id = agent_session_id(user);
-    let panels = render_panel_templates(user, &cfg.agent_provider, &cfg.agent_model);
+    let sidebar = render_sidebar(page);
+    let main = match page {
+        AgentPage::Chat => render_chat_main(prompt, outcome, csrf),
+        _ => render_workspace_main(user, page, &cfg.agent_provider, &cfg.agent_model),
+    };
 
     format!(
-        r#"<section class="agent-os chat-root" aria-label="AkurAI Agent" data-agent-ui data-session="{session_id}">
+        r#"<section class="agent-os chat-root" aria-label="AkurAI Agent" data-agent-ui data-agent-page="{page_path}" data-session="{session_id}" data-csrf="{csrf}">
   <aside class="agent-sidebar" aria-label="Workspace">
     <div class="agent-product">
       <div class="agent-avatar" aria-hidden="true">{initials}</div>
       <div class="agent-brand">AkurAI<small>Personal agent</small></div>
     </div>
-    <a class="agent-new-task" href="/agent">New chat</a>
-    <div class="agent-section">
-      <h2>Workspace</h2>
-      <nav class="agent-nav" aria-label="Workspace">
-        <a class="active" href="/agent">Current conversation <b class="agent-count">now</b></a>
-        <a href="/agent/kanban" data-panel-trigger="kanban">Kanban <b class="agent-count" data-kanban-nav-count>board</b></a>
-      </nav>
-    </div>
+    {sidebar}
     <div class="agent-section agent-account">
       <h2>Account</h2>
       <a href="/account">AkurAI ID</a>
     </div>
   </aside>
 
-  <section class="agent-main" aria-label="Conversation">
-    <header class="agent-head">
-      <div>
-        <h1 class="agent-title">olibuijr</h1>
-        <p class="agent-subtitle">Personal agent</p>
-      </div>
-      <div class="agent-meta" aria-label="Runtime">
-        <button type="button" data-panel-trigger="kanban">Kanban</button>
-        <button type="button" data-panel-trigger="tools">Tools</button>
-        <button type="button" data-panel-trigger="run">Run details</button>
-      </div>
-    </header>
-
-    <div class="agent-timeline chat-thread" aria-live="polite">
-      <section class="agent-tool-panel" data-agent-panel hidden></section>
-      {timeline}
-    </div>
-
-    <form class="agent-composer chat-composer" method="post" action="/agent" aria-label="Message your agent">
-      <input type="hidden" name="_csrf" value="{csrf}">
-      <textarea id="prompt" name="prompt" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" aria-label="Message your agent" placeholder="Message your agent...">{prompt}</textarea>
-      <div class="agent-composer-footer">
-        <span class="agent-state" data-agent-status>Ready</span>
-        <button type="submit" class="btn btn-primary">Run</button>
-      </div>
-    </form>
-  </section>
-
-  <aside class="agent-context" aria-label="Run details"></aside>
+  {main}
   <div class="agent-protocol" hidden data-session="{session_id}">
     analysis commentary final tool_call tool_result approval question edit artifact system error
     clarify.request approval.request sudo.request secret.request terminal.read.request
   </div>
-  {panels}
 </section>"#,
         initials = esc_html(&agent_initials(&user.email)),
-        csrf = esc_html(csrf),
-        max_prompt = MAX_PROMPT_CHARS,
-        prompt = esc_html(prompt),
         session_id = esc_html(&session_id),
-        timeline = timeline,
-        panels = panels,
+        csrf = esc_html(csrf),
+        sidebar = sidebar,
+        main = main,
+        page_path = esc_html(page.path()),
     )
 }
 
@@ -104,6 +130,133 @@ pub(crate) fn forbidden_body(user: &AuthUser) -> String {
     )
 }
 
+fn render_sidebar(active: AgentPage) -> String {
+    fn nav_link(page: AgentPage, active: AgentPage, count: Option<&str>) -> String {
+        let class = if page == active {
+            r#" class="active""#
+        } else {
+            ""
+        };
+        let count = count
+            .map(|value| {
+                if page == AgentPage::Kanban {
+                    format!(r#" <b class="agent-count" data-kanban-nav-count>{value}</b>"#)
+                } else {
+                    format!(r#" <b class="agent-count">{value}</b>"#)
+                }
+            })
+            .unwrap_or_default();
+        format!(
+            r#"<a{class} href="{path}">{label}{count}</a>"#,
+            class = class,
+            path = page.path(),
+            label = page.title(),
+            count = count,
+        )
+    }
+
+    format!(
+        r#"<a class="agent-new-task" href="/agent">Current chat</a>
+    <div class="agent-section">
+      <h2>Workspace</h2>
+      <nav class="agent-nav" aria-label="Workspace">
+        {chat}
+        {kanban}
+        {tools}
+        {run}
+      </nav>
+    </div>
+    <div class="agent-section">
+      <h2>Agent surfaces</h2>
+      <nav class="agent-nav" aria-label="Agent surfaces">
+        {tasks}
+        {projects}
+        {agy}
+        {notes}
+        {passvault}
+        {cron}
+        {curator}
+      </nav>
+    </div>"#,
+        chat = nav_link(AgentPage::Chat, active, Some("now")),
+        kanban = nav_link(AgentPage::Kanban, active, Some("board")),
+        tools = nav_link(AgentPage::Tools, active, None),
+        run = nav_link(AgentPage::Run, active, None),
+        tasks = nav_link(AgentPage::Tasks, active, None),
+        projects = nav_link(AgentPage::Projects, active, None),
+        agy = nav_link(AgentPage::Agy, active, None),
+        notes = nav_link(AgentPage::Notes, active, None),
+        passvault = nav_link(AgentPage::Passvault, active, None),
+        cron = nav_link(AgentPage::Cron, active, None),
+        curator = nav_link(AgentPage::Curator, active, None),
+    )
+}
+
+fn render_chat_main(prompt: &str, outcome: Option<&AgentOutcome>, csrf: &str) -> String {
+    let timeline = match outcome {
+        Some(outcome) => render_timeline(prompt, outcome),
+        None => render_ready_timeline(),
+    };
+    format!(
+        r#"<section class="agent-main" aria-label="Conversation">
+    <header class="agent-head">
+      <div>
+        <h1 class="agent-title">olibuijr</h1>
+        <p class="agent-subtitle">Personal agent</p>
+      </div>
+      <div class="agent-meta" aria-label="Runtime">
+        <a href="/agent/kanban">Kanban</a>
+        <a href="/agent/tools">Tools</a>
+        <a href="/agent/run">Run details</a>
+      </div>
+    </header>
+
+    <div class="agent-timeline chat-thread" aria-live="polite">
+      {timeline}
+    </div>
+
+    <form class="agent-composer chat-composer" method="post" action="/agent" aria-label="Message your agent">
+      <input type="hidden" name="_csrf" value="{csrf}">
+      <textarea id="prompt" name="prompt" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" aria-label="Message your agent" placeholder="Message your agent...">{prompt}</textarea>
+      <div class="agent-composer-footer">
+        <span class="agent-state" data-agent-status>Ready</span>
+        <button type="submit" class="btn btn-primary">Run</button>
+      </div>
+    </form>
+  </section>"#,
+        csrf = esc_html(csrf),
+        max_prompt = MAX_PROMPT_CHARS,
+        prompt = esc_html(prompt),
+        timeline = timeline,
+    )
+}
+
+fn render_workspace_main(user: &AuthUser, page: AgentPage, provider: &str, model: &str) -> String {
+    format!(
+        r#"<section class="agent-main agent-page-main" aria-label="{label}">
+    <header class="agent-head">
+      <div>
+        <h1 class="agent-title">{label}</h1>
+        <p class="agent-subtitle">Personal agent workspace</p>
+      </div>
+      <div class="agent-meta" aria-label="Runtime">
+        <a href="/agent">Chat</a>
+        <a href="/agent/kanban">Kanban</a>
+        <a href="/agent/tools">Tools</a>
+      </div>
+    </header>
+    <div class="agent-page-scroll">
+      <section class="agent-page-panel" data-agent-route-panel="{path}">
+        {content}
+      </section>
+    </div>
+  </section>"#,
+        label = page.title(),
+        path = page.path(),
+        content = render_page_content(user, page, provider, model),
+    )
+}
+
 fn render_ready_timeline() -> String {
     r#"<section class="agent-empty chat-message" data-channel="system" data-kind="ready">
   <h2>What should we work on?</h2>
@@ -111,7 +264,7 @@ fn render_ready_timeline() -> String {
   <div class="agent-suggestions" aria-label="Suggestions">
     <button type="button" data-agent-prompt="Inspect the current agent status and tell me the next concrete fixes.">Inspect agent</button>
     <button type="button" data-agent-prompt="Plan the next agent deploy. Include risks, checks, and rollback.">Plan a deploy</button>
-    <button type="button" data-panel-trigger="tools">Open tools</button>
+    <a href="/agent/tools">Open tools</a>
   </div>
 </section>"#
         .to_string()
@@ -184,32 +337,81 @@ fn render_tool_meta(outcome: &AgentOutcome) -> String {
         .join("")
 }
 
-fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> String {
+fn render_page_content(user: &AuthUser, page: AgentPage, provider: &str, model: &str) -> String {
+    match page {
+        AgentPage::Chat => String::new(),
+        AgentPage::Kanban => render_kanban_page(),
+        AgentPage::Tools => render_tools_page(),
+        AgentPage::Run => render_run_page(user, provider, model),
+        AgentPage::Tasks => render_tasks_page(),
+        AgentPage::Projects => render_projects_page(),
+        AgentPage::Agy => render_agy_page(),
+        AgentPage::Notes => render_notes_page(),
+        AgentPage::Passvault => render_passvault_page(),
+        AgentPage::Cron => render_cron_page(),
+        AgentPage::Curator => render_curator_page(),
+    }
+}
+
+fn render_tools_page() -> String {
+    let tools = [
+        (
+            AgentPage::Tasks,
+            "Plan, create, and review work without covering the chat.",
+        ),
+        (
+            AgentPage::Projects,
+            "Open AkurAI workspaces connected to this agent.",
+        ),
+        (
+            AgentPage::Agy,
+            "Review durable personal context for the current tenant.",
+        ),
+        (
+            AgentPage::Notes,
+            "Save local working notes for this browser session.",
+        ),
+        (
+            AgentPage::Passvault,
+            "Prepare confirmation-gated credential requests.",
+        ),
+        (AgentPage::Cron, "Draft scheduled checks and follow-ups."),
+        (
+            AgentPage::Kanban,
+            "Open the Rust Agent board, task, and claim workflow.",
+        ),
+        (
+            AgentPage::Curator,
+            "Find unfinished UI, noisy controls, and cleanup work.",
+        ),
+    ];
+    let links = tools
+        .into_iter()
+        .map(|(page, description)| {
+            format!(
+                r#"<a href="{path}"><b>{label}</b><span>{description}</span></a>"#,
+                path = page.path(),
+                label = page.title(),
+                description = esc_html(description),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("");
+    format!(
+        r#"<div class="agent-panel-head">
+    <div><h2>Agent tools</h2><p>Use these pages when the conversation needs context, notes, credentials, or work queues.</p></div>
+  </div>
+  <div class="agent-tool-launcher agent-route-launcher">{links}</div>"#
+    )
+}
+
+fn render_run_page(user: &AuthUser, provider: &str, model: &str) -> String {
     let session_id = agent_session_id(user);
     let scope_id = agent_scope_id(user);
 
     format!(
-        r#"<template data-panel-template="tools">
-  <div class="agent-panel-head">
-    <div><h2>Agent tools</h2><p>Use these when the conversation needs context, notes, credentials, or work queues.</p></div>
-    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
-  </div>
-  <div class="agent-tool-launcher">
-    <button type="button" data-panel-trigger="tasks"><b>Tasks</b><span>Plan, create, and review work.</span></button>
-    <button type="button" data-panel-trigger="projects"><b>Projects</b><span>Open AkurAI workspaces.</span></button>
-    <button type="button" data-panel-trigger="agy"><b>AGY</b><span>Use durable personal context.</span></button>
-    <button type="button" data-panel-trigger="notes"><b>Notes</b><span>Save local working notes.</span></button>
-    <button type="button" data-panel-trigger="passvault"><b>Passvault</b><span>Prepare confirmation-gated secrets.</span></button>
-    <button type="button" data-panel-trigger="cron"><b>Cron</b><span>Draft scheduled checks.</span></button>
-    <button type="button" data-panel-trigger="kanban"><b>Kanban</b><span>Shape active work into a board.</span></button>
-    <button type="button" data-panel-trigger="curator"><b>Curator</b><span>Find bloat and unfinished UI.</span></button>
-  </div>
-</template>
-
-<template data-panel-template="run">
-  <div class="agent-panel-head">
+        r#"<div class="agent-panel-head">
     <div><h2>Current run</h2><p>{email}</p></div>
-    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <dl class="agent-panel-grid">
     <div><dt>Provider</dt><dd>{provider}</dd></div>
@@ -220,13 +422,18 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
   <div class="agent-panel-actions">
     <button type="button" data-agent-prompt="Check the current agent run state and list any blocked or risky items.">Check run</button>
     <button type="button" data-agent-prompt="Before making changes, ask me for any confirmations this agent needs.">Ask confirmations</button>
-  </div>
-</template>
+  </div>"#,
+        email = esc_html(&user.email),
+        scope = esc_html(&scope_id),
+        session = esc_html(&session_id),
+        provider = esc_html(provider),
+        model = esc_html(model),
+    )
+}
 
-<template data-panel-template="tasks">
-  <div class="agent-panel-head">
+fn render_tasks_page() -> String {
+    r#"<div class="agent-panel-head">
     <div><h2>Tasks</h2><p>Work queue for this tenant agent.</p></div>
-    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <div class="agent-panel-list">
     <article><b>Review open work</b><span>Summarize active agent tasks and gaps.</span></article>
@@ -236,13 +443,13 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
   <div class="agent-panel-actions">
     <button type="button" data-agent-prompt="Review my open agent tasks and group them by priority.">Review tasks</button>
     <button type="button" data-agent-prompt="Create a concise task plan from this conversation and wait for confirmation.">Create task</button>
-  </div>
-</template>
+  </div>"#
+        .to_string()
+}
 
-<template data-panel-template="projects">
-  <div class="agent-panel-head">
+fn render_projects_page() -> String {
+    r#"<div class="agent-panel-head">
     <div><h2>Projects</h2><p>AkurAI workspaces connected to this agent.</p></div>
-    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <div class="agent-panel-list">
     <article><b>Agent Core</b><span>Gateway, CLI/TUI, and persistent AGY context.</span></article>
@@ -252,13 +459,13 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
   <div class="agent-panel-actions">
     <button type="button" data-agent-prompt="Inspect the agent core project and report the highest-impact incomplete UI/runtime work.">Inspect project</button>
     <button type="button" data-agent-prompt="Compare AkurAI IDP and agent core UI responsibilities and suggest the clean boundary.">Check boundary</button>
-  </div>
-</template>
+  </div>"#
+        .to_string()
+}
 
-<template data-panel-template="agy">
-  <div class="agent-panel-head">
+fn render_agy_page() -> String {
+    r#"<div class="agent-panel-head">
     <div><h2>AGY context</h2><p>Personal agent context, durable notes, and preferences.</p></div>
-    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <div class="agent-panel-list">
     <article><b>Identity</b><span>Tenant agent for olibuijr@olibuijr.com.</span></article>
@@ -268,26 +475,26 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
   <div class="agent-panel-actions">
     <button type="button" data-agent-prompt="Load AGY context for this tenant and summarize the durable preferences that matter now.">Summarize AGY</button>
     <button type="button" data-agent-prompt="Use AGY context, notes, and passvault boundaries before planning the next step.">Use context</button>
-  </div>
-</template>
+  </div>"#
+        .to_string()
+}
 
-<template data-panel-template="notes">
-  <div class="agent-panel-head">
+fn render_notes_page() -> String {
+    r#"<div class="agent-panel-head">
     <div><h2>Notes</h2><p>Local working notes for this browser session.</p></div>
-    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <textarea class="agent-notes-editor" data-notes-editor placeholder="Write working notes for this agent..."></textarea>
   <div class="agent-panel-actions">
     <button type="button" data-save-notes>Save notes</button>
     <button type="button" data-use-notes>Use notes</button>
   </div>
-  <p class="agent-panel-status" data-notes-status></p>
-</template>
+  <p class="agent-panel-status" data-notes-status></p>"#
+        .to_string()
+}
 
-<template data-panel-template="passvault">
-  <div class="agent-panel-head">
+fn render_passvault_page() -> String {
+    r#"<div class="agent-panel-head">
     <div><h2>Passvault</h2><p>Credential requests stay confirmation-gated.</p></div>
-    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <div class="agent-panel-list">
     <article><b>Sealed by default</b><span>No credential is shown in the UI.</span></article>
@@ -296,13 +503,13 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
   <div class="agent-panel-actions">
     <button type="button" data-agent-prompt="Prepare a passvault-backed request. Ask me exactly what secret or confirmation you need before using it.">Request secret</button>
     <button type="button" data-agent-prompt="Audit whether the next task needs passvault access. If yes, ask for confirmation first.">Check access</button>
-  </div>
-</template>
+  </div>"#
+        .to_string()
+}
 
-<template data-panel-template="cron">
-  <div class="agent-panel-head">
+fn render_cron_page() -> String {
+    r#"<div class="agent-panel-head">
     <div><h2>Cron</h2><p>Scheduled agent work.</p></div>
-    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <div class="agent-panel-list">
     <article><b>Daily health</b><span>Check deploy state, gateway health, and parity drift.</span></article>
@@ -310,13 +517,13 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
   </div>
   <div class="agent-panel-actions">
     <button type="button" data-agent-prompt="Draft a cron schedule for agent health checks and ask before enabling anything.">Draft schedule</button>
-  </div>
-</template>
+  </div>"#
+        .to_string()
+}
 
-<template data-panel-template="kanban">
-  <div class="agent-panel-head">
+fn render_kanban_page() -> String {
+    r#"<div class="agent-panel-head">
     <div><h2>Kanban</h2><p>Rust Agent board, tasks, claims, and project delivery state.</p></div>
-    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <section class="kanban-shell" data-kanban-board>
     <div class="kanban-toolbar">
@@ -345,13 +552,13 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
   <div class="agent-panel-actions">
     <button type="button" data-agent-prompt="Review the Rust Agent kanban board, summarize blocked tasks, and propose the next project-management action.">Review board</button>
     <button type="button" data-agent-prompt="Create a practical agile plan from the active kanban work, including next task, owner, and verification step.">Plan sprint</button>
-  </div>
-</template>
+  </div>"#
+        .to_string()
+}
 
-<template data-panel-template="curator">
-  <div class="agent-panel-head">
+fn render_curator_page() -> String {
+    r#"<div class="agent-panel-head">
     <div><h2>Curator</h2><p>Cleanup and quality pass.</p></div>
-    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <div class="agent-panel-list">
     <article><b>Remove dead UI</b><span>Find controls that do not map to a real workflow.</span></article>
@@ -360,14 +567,8 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
   </div>
   <div class="agent-panel-actions">
     <button type="button" data-agent-prompt="Act as curator: identify UI bloat, dead controls, and the smallest fixes to make this console feel finished.">Run curator</button>
-  </div>
-</template>"#,
-        email = esc_html(&user.email),
-        scope = esc_html(&scope_id),
-        session = esc_html(&session_id),
-        provider = esc_html(provider),
-        model = esc_html(model),
-    )
+  </div>"#
+        .to_string()
 }
 
 fn agent_scope_id(user: &AuthUser) -> String {
@@ -402,13 +603,32 @@ mod tests {
         assert!(html.contains("Passvault"));
         assert!(html.contains("Kanban"));
         assert!(html.contains(r#"href="/agent/kanban""#));
-        assert!(html.contains("data-kanban-board"));
-        assert!(html.contains("data-kanban-create"));
-        assert!(html.contains("data-panel-trigger=\"notes\""));
-        assert!(html.contains("data-use-notes"));
+        assert!(html.contains(r#"href="/agent/notes""#));
+        assert!(!html.contains("data-panel-trigger"));
+        assert!(!html.contains("data-agent-panel"));
+        assert!(!html.contains("data-panel-template"));
+        assert!(!html.contains("data-kanban-board"));
         assert!(html.contains("data-agent-prompt"));
         assert!(html.contains("approval.request"));
         assert!(html.contains("tool_call"));
+    }
+
+    #[test]
+    fn kanban_body_contains_board_on_own_page() {
+        let html = agent_static_page_body(&user(), "csrf", AgentPage::Kanban);
+        assert!(html.contains(r#"data-agent-page="/agent/kanban""#));
+        assert!(html.contains("data-kanban-board"));
+        assert!(html.contains("data-kanban-create"));
+        assert!(!html.contains("agent-timeline"));
+        assert!(!html.contains("chat-composer"));
+    }
+
+    #[test]
+    fn notes_body_uses_route_not_overlay_template() {
+        let html = agent_static_page_body(&user(), "csrf", AgentPage::Notes);
+        assert!(html.contains(r#"data-agent-page="/agent/notes""#));
+        assert!(html.contains("data-use-notes"));
+        assert!(!html.contains("data-panel-template"));
     }
 
     #[test]

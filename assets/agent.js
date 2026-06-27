@@ -1,25 +1,20 @@
 const roots = document.querySelectorAll("[data-agent-ui]");
 
 for (const root of roots) {
-  const panel = root.querySelector("[data-agent-panel]");
   const timeline = root.querySelector(".agent-timeline");
   const form = root.querySelector("form.agent-composer");
   const prompt = root.querySelector("textarea[name='prompt']");
   const status = root.querySelector("[data-agent-status]");
   const submit = form?.querySelector("button[type='submit']");
   const session = root.dataset.session || "default";
+  const page = root.dataset.agentPage || location.pathname;
+  const isChatPage = page === "/agent";
   const notesKey = `akurai-agent-notes:${session}`;
-  const csrf = form?.querySelector("input[name='_csrf']")?.value || "";
+  const chatKey = `akurai-agent-chat:${session}`;
+  const draftKey = `akurai-agent-draft:${session}`;
+  const pendingPromptKey = `akurai-agent-pending-prompt:${session}`;
+  const csrf = root.dataset.csrf || form?.querySelector("input[name='_csrf']")?.value || "";
   let running = false;
-  const toolPanels = new Set([
-    "tasks",
-    "projects",
-    "agy",
-    "notes",
-    "passvault",
-    "cron",
-    "curator",
-  ]);
 
   const setStatus = (text) => {
     if (status) status.textContent = text;
@@ -40,6 +35,24 @@ for (const root of roots) {
 
   const removeReadyState = () => {
     timeline?.querySelector("[data-kind='ready']")?.remove();
+  };
+
+  const chatEvents = () => {
+    if (!timeline) return [];
+    return [...timeline.querySelectorAll(".agent-event.chat-message")].map((article) => ({
+      role: article.classList.contains("agent-event-user") ? "user" : "assistant",
+      channel: article.querySelector(".agent-channel")?.textContent || "agent",
+      time: article.querySelector(".agent-time")?.textContent || "",
+      content: article.querySelector(".chat-message-content")?.textContent || "",
+      error: article.classList.contains("agent-event-error"),
+    }));
+  };
+
+  const saveChat = () => {
+    if (!isChatPage || !timeline) return;
+    const events = chatEvents();
+    if (events.length === 0) return;
+    localStorage.setItem(chatKey, JSON.stringify({ events, savedAt: Date.now() }));
   };
 
   const appendEvent = ({ role, channel, time, content, error = false }) => {
@@ -74,6 +87,7 @@ for (const root of roots) {
     article.append(head, body);
     timeline.append(article);
     scrollToLatest();
+    saveChat();
     return article;
   };
 
@@ -92,6 +106,7 @@ for (const root of roots) {
     article.querySelector(".chat-message-content").textContent =
       payload.response || "No response returned.";
     scrollToLatest();
+    saveChat();
   };
 
   const parseEvent = (block) => {
@@ -165,6 +180,7 @@ for (const root of roots) {
     setBusy(true);
     setStatus("Running");
     prompt.value = "";
+    localStorage.removeItem(draftKey);
 
     try {
       const response = await fetch("/agent/stream", {
@@ -187,6 +203,7 @@ for (const root of roots) {
           setStatus("Running");
           assistant.querySelector(".agent-time").textContent = "running";
           assistant.querySelector(".chat-message-content").textContent = "Thinking...";
+          saveChat();
           return;
         }
         updateAssistant(assistant, payload);
@@ -198,6 +215,7 @@ for (const root of roots) {
         response: error instanceof Error ? error.message : "Agent stream failed.",
       });
       prompt.value = text;
+      localStorage.setItem(draftKey, text);
       setStatus("Error");
     } finally {
       setBusy(false);
@@ -205,50 +223,71 @@ for (const root of roots) {
     }
   };
 
-  const activate = (key) => {
-    const activeKey = toolPanels.has(key) ? "tools" : key;
-    root.querySelectorAll("[data-panel-trigger]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.panelTrigger === activeKey);
-      button.classList.toggle("agent-mode-active", button.dataset.panelTrigger === activeKey);
-    });
-  };
-
   const fillPrompt = (text) => {
-    if (!prompt || !text) return;
+    if (!text) return;
+    if (!prompt) {
+      localStorage.setItem(pendingPromptKey, text);
+      location.href = "/agent";
+      return;
+    }
     prompt.value = text;
+    localStorage.setItem(draftKey, text);
     prompt.focus();
     prompt.setSelectionRange(prompt.value.length, prompt.value.length);
     setStatus("Ready to run");
   };
 
-  const bindPanel = () => {
-    panel.querySelector("[data-panel-close]")?.addEventListener("click", () => {
-      panel.hidden = true;
-      activate("chat");
-      setStatus("Ready");
-    });
-
-    panel.querySelectorAll("[data-agent-prompt]").forEach((button) => {
-      button.addEventListener("click", () => fillPrompt(button.dataset.agentPrompt));
-    });
-
-    panel.querySelectorAll("[data-panel-trigger]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        openPanel(button.dataset.panelTrigger);
+  const restoreChat = () => {
+    if (!isChatPage || !timeline) return;
+    if (timeline.querySelector(".agent-event.chat-message")) {
+      saveChat();
+      return;
+    }
+    let parsed = null;
+    try {
+      parsed = JSON.parse(localStorage.getItem(chatKey) || "null");
+    } catch {
+      localStorage.removeItem(chatKey);
+    }
+    const events = Array.isArray(parsed?.events) ? parsed.events : [];
+    if (events.length === 0) return;
+    removeReadyState();
+    for (const event of events) {
+      appendEvent({
+        role: event.role === "user" ? "user" : "assistant",
+        channel: String(event.channel || "agent"),
+        time: String(event.time || "restored"),
+        content: String(event.content || ""),
+        error: Boolean(event.error),
       });
-    });
+    }
+    setStatus("Restored");
+  };
 
-    const notes = panel.querySelector("[data-notes-editor]");
-    const notesStatus = panel.querySelector("[data-notes-status]");
+  const restorePrompt = () => {
+    if (!prompt) return;
+    const pending = localStorage.getItem(pendingPromptKey);
+    if (pending) {
+      localStorage.removeItem(pendingPromptKey);
+      fillPrompt(pending);
+      return;
+    }
+    if (!prompt.value) {
+      prompt.value = localStorage.getItem(draftKey) || "";
+    }
+  };
+
+  const initNotes = (container) => {
+    const notes = container.querySelector("[data-notes-editor]");
+    const notesStatus = container.querySelector("[data-notes-status]");
     if (notes) {
       notes.value = localStorage.getItem(notesKey) || "";
-      panel.querySelector("[data-save-notes]")?.addEventListener("click", () => {
+      container.querySelector("[data-save-notes]")?.addEventListener("click", () => {
         localStorage.setItem(notesKey, notes.value);
         if (notesStatus) notesStatus.textContent = "Saved locally";
         setStatus("Notes saved");
       });
-      panel.querySelector("[data-use-notes]")?.addEventListener("click", () => {
+      container.querySelector("[data-use-notes]")?.addEventListener("click", () => {
         const text = notes.value.trim();
         fillPrompt(
           text
@@ -257,44 +296,21 @@ for (const root of roots) {
         );
       });
     }
-
-    const kanban = panel.querySelector("[data-kanban-board]");
-    if (kanban) initKanbanPanel(kanban);
   };
-
-  const openPanel = (key) => {
-    if (key === "chat") {
-      panel.hidden = true;
-      activate("chat");
-      setStatus("Ready");
-      prompt?.focus();
-      return;
-    }
-    const template = root.querySelector(`template[data-panel-template="${key}"]`);
-    if (!template || !panel) return;
-    panel.replaceChildren(template.content.cloneNode(true));
-    panel.hidden = false;
-    activate(key);
-    bindPanel();
-    setStatus(`${key} open`);
-  };
-
-  root.querySelectorAll("[data-panel-trigger]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      openPanel(button.dataset.panelTrigger);
-    });
-  });
 
   root.querySelectorAll("[data-agent-prompt]").forEach((button) => {
     button.addEventListener("click", () => fillPrompt(button.dataset.agentPrompt));
   });
 
-  form?.addEventListener("submit", submitStream);
+  prompt?.addEventListener("input", () => {
+    localStorage.setItem(draftKey, prompt.value);
+  });
 
-  if (location.pathname === "/agent/kanban") {
-    openPanel("kanban");
-  }
+  form?.addEventListener("submit", submitStream);
+  restoreChat();
+  restorePrompt();
+  initNotes(root);
+  root.querySelectorAll("[data-kanban-board]").forEach(initKanbanPanel);
 
   async function kanbanFetch(path, options = {}) {
     const headers = {

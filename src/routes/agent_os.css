@@ -168,6 +168,7 @@ body {
 
 .agent-mode-active,
 .agent-nav-item.active,
+.agent-nav a.active,
 .agent-new-task:hover,
 .agent-mode:hover,
 .agent-nav a:hover,
@@ -239,7 +240,8 @@ body {
   font: 12px/1.2 var(--mono);
 }
 
-.agent-meta button {
+.agent-meta button,
+.agent-meta a {
   appearance: none;
   padding: 4px 8px;
   border: 1px solid var(--soft-border);
@@ -247,11 +249,14 @@ body {
   background: color-mix(in srgb, var(--panel) 52%, transparent);
   color: var(--muted);
   font: inherit;
+  text-decoration: none;
   cursor: pointer;
 }
 
 .agent-meta button:hover,
-.agent-meta button.active {
+.agent-meta button.active,
+.agent-meta a:hover,
+.agent-meta a.active {
   color: var(--fg);
   border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
 }
@@ -300,7 +305,8 @@ body {
   margin-top: 22px;
 }
 
-.agent-suggestions button {
+.agent-suggestions button,
+.agent-suggestions a {
   appearance: none;
   padding: 8px 11px;
   border: 1px solid var(--soft-border);
@@ -309,10 +315,12 @@ body {
   background: color-mix(in srgb, var(--panel) 50%, transparent);
   font: inherit;
   font-size: 13px;
+  text-decoration: none;
   cursor: pointer;
 }
 
-.agent-suggestions button:hover {
+.agent-suggestions button:hover,
+.agent-suggestions a:hover {
   color: var(--fg);
   border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
 }
@@ -387,6 +395,27 @@ body {
   display: none;
 }
 
+.agent-page-main {
+  grid-template-rows: 56px minmax(0, 1fr);
+}
+
+.agent-page-scroll {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
+}
+
+.agent-page-panel {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 16px;
+  border: 1px solid var(--soft-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 72%, var(--bg));
+  box-shadow: var(--shadow);
+}
+
 .agent-panel-head {
   display: flex;
   align-items: flex-start;
@@ -443,7 +472,8 @@ body {
   gap: 8px;
 }
 
-.agent-tool-launcher button {
+.agent-tool-launcher button,
+.agent-tool-launcher a {
   appearance: none;
   min-width: 0;
   display: grid;
@@ -456,10 +486,12 @@ body {
   color: var(--fg);
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
-.agent-tool-launcher button:hover {
+.agent-tool-launcher button:hover,
+.agent-tool-launcher a:hover {
   border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
   background: color-mix(in srgb, var(--panel) 68%, var(--bg));
 }
@@ -472,6 +504,10 @@ body {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.agent-route-launcher {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .agent-panel-grid {
@@ -908,6 +944,14 @@ body {
 
   .agent-tool-launcher {
     grid-template-columns: 1fr;
+  }
+
+  .agent-route-launcher {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-page-scroll {
+    padding: 16px;
   }
 
   .kanban-columns {
