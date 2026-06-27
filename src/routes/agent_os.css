@@ -74,7 +74,7 @@ body {
 .agent-sidebar {
   min-width: 0;
   display: grid;
-  grid-template-rows: auto auto auto auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   align-content: start;
   gap: 14px;
   padding: 16px 12px;
@@ -180,6 +180,7 @@ body {
 
 .agent-section {
   display: grid;
+  align-content: start;
   gap: 6px;
   padding-top: 12px;
   border-top: 1px solid var(--soft-border);
@@ -436,6 +437,43 @@ body {
   gap: 8px;
 }
 
+.agent-tool-launcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.agent-tool-launcher button {
+  appearance: none;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  min-height: 78px;
+  padding: 11px;
+  border: 1px solid var(--soft-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-2) 68%, transparent);
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-tool-launcher button:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--panel) 68%, var(--bg));
+}
+
+.agent-tool-launcher b {
+  font-size: 13px;
+}
+
+.agent-tool-launcher span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .agent-panel-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -630,6 +668,10 @@ body {
   }
 
   .agent-panel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-tool-launcher {
     grid-template-columns: 1fr;
   }
 }

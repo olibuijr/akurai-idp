@@ -27,26 +27,10 @@ pub(crate) fn agent_body(
       <div class="agent-brand">RustAgent<small>Hermes runtime</small></div>
     </div>
     <a class="agent-new-task" href="/agent">New chat</a>
-    <nav class="agent-modebar" aria-label="Modes">
-      <button type="button" class="agent-mode agent-mode-active" data-icon="C" data-panel-trigger="chat">Chat</button>
-      <button type="button" class="agent-mode" data-icon="T" data-panel-trigger="tasks">Tasks</button>
-      <button type="button" class="agent-mode" data-icon="P" data-panel-trigger="projects">Projects</button>
-    </nav>
     <div class="agent-section">
-      <h2>Workspace</h2>
-      <nav class="agent-nav" aria-label="Workspace state">
-        <button type="button" class="agent-nav-item active" data-panel-trigger="run">Current run <b class="agent-count">live</b></button>
-        <button type="button" class="agent-nav-item" data-panel-trigger="agy">AGY <b class="agent-count">context</b></button>
-        <button type="button" class="agent-nav-item" data-panel-trigger="notes">Notes <b class="agent-count">local</b></button>
-        <button type="button" class="agent-nav-item" data-panel-trigger="passvault">Passvault <b class="agent-count">sealed</b></button>
-      </nav>
-    </div>
-    <div class="agent-section">
-      <h2>Queues</h2>
-      <nav class="agent-nav" aria-label="Queues">
-        <button type="button" class="agent-nav-item" data-panel-trigger="cron">Cron <b class="agent-count">ready</b></button>
-        <button type="button" class="agent-nav-item" data-panel-trigger="kanban">Kanban <b class="agent-count">ready</b></button>
-        <button type="button" class="agent-nav-item" data-panel-trigger="curator">Curator <b class="agent-count">ready</b></button>
+      <h2>Chats</h2>
+      <nav class="agent-nav" aria-label="Chats">
+        <a class="active" href="/agent">Current conversation <b class="agent-count">now</b></a>
       </nav>
     </div>
     <div class="agent-section agent-account">
@@ -62,7 +46,8 @@ pub(crate) fn agent_body(
         <p class="agent-subtitle">AkurAI-RustAgent</p>
       </div>
       <div class="agent-meta" aria-label="Runtime">
-        <button type="button" data-panel-trigger="run">Ready</button>
+        <button type="button" data-panel-trigger="tools">Tools</button>
+        <button type="button" data-panel-trigger="run">Run details</button>
       </div>
     </header>
 
@@ -124,7 +109,7 @@ fn render_ready_timeline() -> String {
   <div class="agent-suggestions" aria-label="Suggestions">
     <button type="button" data-agent-prompt="Inspect the current AkurAI-RustAgent status and tell me the next concrete fixes.">Inspect rust-agent</button>
     <button type="button" data-agent-prompt="Plan the next AkurAI-RustAgent deploy. Include risks, checks, and rollback.">Plan a deploy</button>
-    <button type="button" data-agent-prompt="Use AGY context and notes to summarize what matters before we continue.">Open AGY context</button>
+    <button type="button" data-panel-trigger="tools">Open tools</button>
   </div>
 </section>"#
         .to_string()
@@ -206,7 +191,24 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
     let scope_id = agent_scope_id(user);
 
     format!(
-        r#"<template data-panel-template="run">
+        r#"<template data-panel-template="tools">
+  <div class="agent-panel-head">
+    <div><h2>Agent tools</h2><p>Use these when the conversation needs context, notes, credentials, or work queues.</p></div>
+    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
+  </div>
+  <div class="agent-tool-launcher">
+    <button type="button" data-panel-trigger="tasks"><b>Tasks</b><span>Plan, create, and review work.</span></button>
+    <button type="button" data-panel-trigger="projects"><b>Projects</b><span>Open AkurAI workspaces.</span></button>
+    <button type="button" data-panel-trigger="agy"><b>AGY</b><span>Use durable personal context.</span></button>
+    <button type="button" data-panel-trigger="notes"><b>Notes</b><span>Save local working notes.</span></button>
+    <button type="button" data-panel-trigger="passvault"><b>Passvault</b><span>Prepare confirmation-gated secrets.</span></button>
+    <button type="button" data-panel-trigger="cron"><b>Cron</b><span>Draft scheduled checks.</span></button>
+    <button type="button" data-panel-trigger="kanban"><b>Kanban</b><span>Shape active work into a board.</span></button>
+    <button type="button" data-panel-trigger="curator"><b>Curator</b><span>Find bloat and unfinished UI.</span></button>
+  </div>
+</template>
+
+<template data-panel-template="run">
   <div class="agent-panel-head">
     <div><h2>Current run</h2><p>{email}</p></div>
     <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>

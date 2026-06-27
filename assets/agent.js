@@ -6,15 +6,26 @@ for (const root of roots) {
   const status = root.querySelector("[data-agent-status]");
   const session = root.dataset.session || "default";
   const notesKey = `akurai-agent-notes:${session}`;
+  const toolPanels = new Set([
+    "tasks",
+    "projects",
+    "agy",
+    "notes",
+    "passvault",
+    "cron",
+    "kanban",
+    "curator",
+  ]);
 
   const setStatus = (text) => {
     if (status) status.textContent = text;
   };
 
   const activate = (key) => {
+    const activeKey = toolPanels.has(key) ? "tools" : key;
     root.querySelectorAll("[data-panel-trigger]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.panelTrigger === key);
-      button.classList.toggle("agent-mode-active", button.dataset.panelTrigger === key);
+      button.classList.toggle("active", button.dataset.panelTrigger === activeKey);
+      button.classList.toggle("agent-mode-active", button.dataset.panelTrigger === activeKey);
     });
   };
 
@@ -35,6 +46,10 @@ for (const root of roots) {
 
     panel.querySelectorAll("[data-agent-prompt]").forEach((button) => {
       button.addEventListener("click", () => fillPrompt(button.dataset.agentPrompt));
+    });
+
+    panel.querySelectorAll("[data-panel-trigger]").forEach((button) => {
+      button.addEventListener("click", () => openPanel(button.dataset.panelTrigger));
     });
 
     const notes = panel.querySelector("[data-notes-editor]");
