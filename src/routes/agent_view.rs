@@ -28,9 +28,10 @@ pub(crate) fn agent_body(
     </div>
     <a class="agent-new-task" href="/agent">New chat</a>
     <div class="agent-section">
-      <h2>Chats</h2>
-      <nav class="agent-nav" aria-label="Chats">
+      <h2>Workspace</h2>
+      <nav class="agent-nav" aria-label="Workspace">
         <a class="active" href="/agent">Current conversation <b class="agent-count">now</b></a>
+        <a href="/agent/kanban" data-panel-trigger="kanban">Kanban <b class="agent-count" data-kanban-nav-count>board</b></a>
       </nav>
     </div>
     <div class="agent-section agent-account">
@@ -46,6 +47,7 @@ pub(crate) fn agent_body(
         <p class="agent-subtitle">Personal agent</p>
       </div>
       <div class="agent-meta" aria-label="Runtime">
+        <button type="button" data-panel-trigger="kanban">Kanban</button>
         <button type="button" data-panel-trigger="tools">Tools</button>
         <button type="button" data-panel-trigger="run">Run details</button>
       </div>
@@ -56,7 +58,7 @@ pub(crate) fn agent_body(
       {timeline}
     </div>
 
-    <form class="agent-composer chat-composer" method="post" action="" aria-label="Message your agent">
+    <form class="agent-composer chat-composer" method="post" action="/agent" aria-label="Message your agent">
       <input type="hidden" name="_csrf" value="{csrf}">
       <textarea id="prompt" name="prompt" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" aria-label="Message your agent" placeholder="Message your agent...">{prompt}</textarea>
       <div class="agent-composer-footer">
@@ -157,11 +159,7 @@ fn render_timeline(prompt: &str, outcome: &AgentOutcome) -> String {
         run_details = run_details,
         status_class = status_class,
         status = status,
-        channel = if outcome.ok {
-            "agent"
-        } else {
-            "gateway error"
-        },
+        channel = if outcome.ok { "agent" } else { "gateway error" },
         latency = outcome.latency_ms.unwrap_or_default(),
         response = esc_html(&outcome.response),
     )
@@ -317,16 +315,36 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
 
 <template data-panel-template="kanban">
   <div class="agent-panel-head">
-    <div><h2>Kanban</h2><p>Task board for active agent work.</p></div>
+    <div><h2>Kanban</h2><p>Rust Agent board, tasks, claims, and project delivery state.</p></div>
     <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
-  <div class="agent-panel-list">
-    <article><b>Todo</b><span>Untriaged UI and Hermes parity gaps.</span></article>
-    <article><b>Doing</b><span>Current console completion work.</span></article>
-    <article><b>Review</b><span>Live checks, screenshots, and deploy smoke.</span></article>
-  </div>
+  <section class="kanban-shell" data-kanban-board>
+    <div class="kanban-toolbar">
+      <label>Board <select data-kanban-board-select aria-label="Kanban board"></select></label>
+      <label class="kanban-check"><input type="checkbox" data-kanban-include-done checked> Done</label>
+      <button type="button" data-kanban-refresh>Refresh</button>
+      <button type="button" data-kanban-reclaim>Reclaim stale</button>
+      <button type="button" data-kanban-dispatch>Dry-run dispatch</button>
+    </div>
+    <form class="kanban-create" data-kanban-create>
+      <input name="title" maxlength="160" required placeholder="Task title" aria-label="Task title">
+      <input name="assignee" maxlength="80" placeholder="Assignee" aria-label="Assignee">
+      <textarea name="description" maxlength="1200" placeholder="Description" aria-label="Description"></textarea>
+      <button type="submit">Create</button>
+    </form>
+    <div class="kanban-metrics" data-kanban-metrics></div>
+    <div class="kanban-columns" aria-label="Kanban columns">
+      <section class="kanban-column" data-kanban-column="todo"><h3>Todo <b>0</b></h3><div></div></section>
+      <section class="kanban-column" data-kanban-column="doing"><h3>Doing <b>0</b></h3><div></div></section>
+      <section class="kanban-column" data-kanban-column="blocked"><h3>Blocked <b>0</b></h3><div></div></section>
+      <section class="kanban-column" data-kanban-column="done"><h3>Done <b>0</b></h3><div></div></section>
+    </div>
+    <section class="kanban-detail" data-kanban-detail hidden></section>
+    <p class="agent-panel-status" data-kanban-status></p>
+  </section>
   <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Create a Kanban view for the current agent UI work and identify what is actually blocked.">Build board</button>
+    <button type="button" data-agent-prompt="Review the Rust Agent kanban board, summarize blocked tasks, and propose the next project-management action.">Review board</button>
+    <button type="button" data-agent-prompt="Create a practical agile plan from the active kanban work, including next task, owner, and verification step.">Plan sprint</button>
   </div>
 </template>
 
@@ -383,6 +401,9 @@ mod tests {
         assert!(html.contains("AkurAI"));
         assert!(html.contains("Passvault"));
         assert!(html.contains("Kanban"));
+        assert!(html.contains(r#"href="/agent/kanban""#));
+        assert!(html.contains("data-kanban-board"));
+        assert!(html.contains("data-kanban-create"));
         assert!(html.contains("data-panel-trigger=\"notes\""));
         assert!(html.contains("data-use-notes"));
         assert!(html.contains("data-agent-prompt"));

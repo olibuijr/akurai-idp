@@ -535,6 +535,232 @@ body {
   resize: vertical;
 }
 
+.kanban-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.kanban-toolbar,
+.kanban-create,
+.kanban-metrics,
+.kanban-card-actions,
+.kanban-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.kanban-toolbar label,
+.kanban-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.kanban-toolbar select,
+.kanban-create input,
+.kanban-create textarea,
+.kanban-detail textarea {
+  min-height: 34px;
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-2) 76%, transparent);
+  color: var(--fg);
+  font: 13px/1.35 var(--font-sans);
+}
+
+.kanban-toolbar select {
+  width: 150px;
+  padding: 6px 8px;
+}
+
+.kanban-toolbar button,
+.kanban-create button,
+.kanban-card-actions button,
+.kanban-detail-actions button {
+  appearance: none;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel-2) 48%, transparent);
+  color: var(--fg);
+  font: 13px/1.2 var(--font-sans);
+  cursor: pointer;
+}
+
+.kanban-toolbar button:hover,
+.kanban-create button:hover,
+.kanban-card-actions button:hover,
+.kanban-detail-actions button:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+}
+
+.kanban-create {
+  align-items: stretch;
+}
+
+.kanban-create input[name="title"] {
+  flex: 1 1 220px;
+}
+
+.kanban-create input[name="assignee"] {
+  flex: 0 1 130px;
+}
+
+.kanban-create textarea {
+  flex: 2 1 280px;
+  min-height: 34px;
+  max-height: 96px;
+  padding: 7px 9px;
+  resize: vertical;
+}
+
+.kanban-metrics {
+  min-height: 30px;
+}
+
+.kanban-metric {
+  padding: 5px 8px;
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--bg-2) 68%, transparent);
+  font: 12px/1.2 var(--mono);
+}
+
+.kanban-columns {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(164px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.kanban-column {
+  min-width: 164px;
+  min-height: 260px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--soft-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-2) 70%, transparent);
+}
+
+.kanban-column h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  color: var(--fg);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.kanban-column h3 b {
+  color: var(--muted);
+  font: 11px/1.2 var(--mono);
+}
+
+.kanban-column > div {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.kanban-card {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 68%, var(--bg));
+}
+
+.kanban-card[data-status="blocked"] {
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--soft-border));
+}
+
+.kanban-card[data-status="done"] {
+  opacity: .78;
+}
+
+.kanban-card-title {
+  margin: 0;
+  color: var(--fg);
+  font-weight: 650;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.kanban-card-meta,
+.kanban-card-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.kanban-card-actions {
+  gap: 5px;
+}
+
+.kanban-card-actions button {
+  min-height: 28px;
+  padding: 5px 7px;
+  font-size: 12px;
+}
+
+.kanban-detail {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--soft-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-2) 72%, transparent);
+}
+
+.kanban-detail[hidden] {
+  display: none;
+}
+
+.kanban-detail h3 {
+  margin: 0;
+  color: var(--fg);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.kanban-detail p,
+.kanban-detail li {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.kanban-detail ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kanban-detail textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 8px;
+  resize: vertical;
+}
+
 .agent-tool-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -682,5 +908,9 @@ body {
 
   .agent-tool-launcher {
     grid-template-columns: 1fr;
+  }
+
+  .kanban-columns {
+    grid-template-columns: repeat(4, minmax(210px, 1fr));
   }
 }

@@ -1,8 +1,8 @@
 use async_stream::stream;
 use axum::{
-    Form, Router,
+    Form, Json, Router,
     body::{Body, Bytes},
-    extract::Extension,
+    extract::{Extension, Path, Query},
     http::{HeaderMap, StatusCode, header},
     response::{Html, IntoResponse, Response},
     routing::{get, post},
@@ -25,6 +25,33 @@ const MAX_RESPONSE_BYTES: usize = 512 * 1024;
 pub fn router() -> Router {
     Router::new()
         .route("/agent", get(agent_page).post(agent_submit))
+        .route("/agent/kanban", get(agent_kanban_page))
+        .route("/agent/kanban/boards", get(kanban_boards))
+        .route("/agent/kanban/board/{board}", get(kanban_board))
+        .route("/agent/kanban/tasks", post(kanban_create_task))
+        .route("/agent/kanban/tasks/{task_id}", get(kanban_task))
+        .route(
+            "/agent/kanban/tasks/{task_id}/status",
+            post(kanban_task_status),
+        )
+        .route(
+            "/agent/kanban/tasks/{task_id}/assign",
+            post(kanban_task_assign),
+        )
+        .route(
+            "/agent/kanban/tasks/{task_id}/comments",
+            post(kanban_task_comment),
+        )
+        .route(
+            "/agent/kanban/tasks/{task_id}/claim",
+            post(kanban_task_claim),
+        )
+        .route(
+            "/agent/kanban/tasks/{task_id}/heartbeat",
+            post(kanban_task_heartbeat),
+        )
+        .route("/agent/kanban/reclaim", post(kanban_reclaim))
+        .route("/agent/kanban/dispatch", post(kanban_dispatch))
         .route("/agent/stream", post(agent_stream))
 }
 
@@ -32,6 +59,45 @@ pub fn router() -> Router {
 struct AgentForm {
     prompt: Option<String>,
     _csrf: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KanbanBoardQuery {
+    include_done: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KanbanTaskInput {
+    title: Option<String>,
+    description: Option<String>,
+    assignee: Option<String>,
+    board: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KanbanStatusInput {
+    status: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KanbanAssignInput {
+    assignee: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KanbanCommentInput {
+    body: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KanbanHeartbeatInput {
+    note: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KanbanDispatchInput {
+    dry_run: Option<bool>,
+    max_claims: Option<usize>,
 }
 
 async fn agent_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
@@ -42,6 +108,21 @@ async fn agent_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) ->
     let theme = agent_theme(&headers);
     Html(console_page_with_theme(
         "Agent Console",
+        &agent_body(&user, &csrf, "", None),
+        AGENT_OS_STYLES,
+        Some(&theme),
+    ))
+    .into_response()
+}
+
+async fn agent_kanban_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
+    if !agent_allowed(&user.email) {
+        return forbidden_page(&headers, &user);
+    }
+    let csrf = csrf_cookie(&headers).unwrap_or_default();
+    let theme = agent_theme(&headers);
+    Html(console_page_with_theme(
+        "Agent Kanban",
         &agent_body(&user, &csrf, "", None),
         AGENT_OS_STYLES,
         Some(&theme),
@@ -128,6 +209,161 @@ async fn agent_stream(
     sse_body_response(Body::from_stream(body_stream))
 }
 
+async fn kanban_boards(Extension(user): Extension<AuthUser>) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    kanban_gateway_get("/kanban/boards").await
+}
+
+async fn kanban_board(
+    Extension(user): Extension<AuthUser>,
+    Path(board): Path<String>,
+    Query(query): Query<KanbanBoardQuery>,
+) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    let include_done = query
+        .include_done
+        .as_deref()
+        .map(|value| !matches!(value, "" | "0" | "false"))
+        .unwrap_or(false);
+    let path = format!(
+        "/kanban/board/{}{}",
+        encode_path_segment(&board),
+        if include_done { "?include_done=1" } else { "" }
+    );
+    kanban_gateway_get(&path).await
+}
+
+async fn kanban_task(
+    Extension(user): Extension<AuthUser>,
+    Path(task_id): Path<String>,
+) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    kanban_gateway_get(&format!("/kanban/tasks/{}", encode_path_segment(&task_id))).await
+}
+
+async fn kanban_create_task(
+    Extension(user): Extension<AuthUser>,
+    Json(input): Json<KanbanTaskInput>,
+) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    kanban_gateway_post(
+        "/kanban/tasks",
+        json!({
+            "title": input.title.unwrap_or_default(),
+            "description": input.description.unwrap_or_default(),
+            "assignee": input.assignee.unwrap_or_default(),
+            "board": input.board.unwrap_or_else(|| "default".to_string()),
+        }),
+    )
+    .await
+}
+
+async fn kanban_task_status(
+    Extension(user): Extension<AuthUser>,
+    Path(task_id): Path<String>,
+    Json(input): Json<KanbanStatusInput>,
+) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    kanban_gateway_post(
+        &format!("/kanban/tasks/{}/status", encode_path_segment(&task_id)),
+        json!({ "status": input.status.unwrap_or_else(|| "todo".to_string()) }),
+    )
+    .await
+}
+
+async fn kanban_task_assign(
+    Extension(user): Extension<AuthUser>,
+    Path(task_id): Path<String>,
+    Json(input): Json<KanbanAssignInput>,
+) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    kanban_gateway_post(
+        &format!("/kanban/tasks/{}/assign", encode_path_segment(&task_id)),
+        json!({ "assignee": input.assignee.unwrap_or_default() }),
+    )
+    .await
+}
+
+async fn kanban_task_comment(
+    Extension(user): Extension<AuthUser>,
+    Path(task_id): Path<String>,
+    Json(input): Json<KanbanCommentInput>,
+) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    kanban_gateway_post(
+        &format!("/kanban/tasks/{}/comments", encode_path_segment(&task_id)),
+        json!({ "body": input.body.unwrap_or_default(), "author": user.email }),
+    )
+    .await
+}
+
+async fn kanban_task_claim(
+    Extension(user): Extension<AuthUser>,
+    Path(task_id): Path<String>,
+) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    kanban_gateway_post(
+        &format!("/kanban/tasks/{}/claim", encode_path_segment(&task_id)),
+        json!({}),
+    )
+    .await
+}
+
+async fn kanban_task_heartbeat(
+    Extension(user): Extension<AuthUser>,
+    Path(task_id): Path<String>,
+    Json(input): Json<KanbanHeartbeatInput>,
+) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    kanban_gateway_post(
+        &format!("/kanban/tasks/{}/heartbeat", encode_path_segment(&task_id)),
+        json!({ "note": input.note.unwrap_or_default() }),
+    )
+    .await
+}
+
+async fn kanban_reclaim(Extension(user): Extension<AuthUser>) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    kanban_gateway_post("/kanban/reclaim", json!({})).await
+}
+
+async fn kanban_dispatch(
+    Extension(user): Extension<AuthUser>,
+    Json(input): Json<KanbanDispatchInput>,
+) -> Response {
+    if !agent_allowed(&user.email) {
+        return kanban_forbidden();
+    }
+    kanban_gateway_post(
+        "/kanban/dispatch",
+        json!({
+            "dry_run": input.dry_run.unwrap_or(true),
+            "max_claims": input.max_claims,
+        }),
+    )
+    .await
+}
+
 fn forbidden_page(headers: &HeaderMap, user: &AuthUser) -> Response {
     let theme = agent_theme(headers);
     (
@@ -205,12 +441,54 @@ fn sse_body_response(body: Body) -> Response {
 }
 
 async fn post_json(url: &str, body: &str) -> Result<String, String> {
+    request_json("POST", url, Some(body)).await
+}
+
+async fn kanban_gateway_get(path: &str) -> Response {
+    match request_json("GET", &gateway_api_url(path), None).await {
+        Ok(body) => kanban_json_response(StatusCode::OK, &body),
+        Err(error) => kanban_error(StatusCode::BAD_GATEWAY, &error),
+    }
+}
+
+async fn kanban_gateway_post(path: &str, body: Value) -> Response {
+    match request_json("POST", &gateway_api_url(path), Some(&body.to_string())).await {
+        Ok(body) => kanban_json_response(StatusCode::OK, &body),
+        Err(error) => kanban_error(StatusCode::BAD_GATEWAY, &error),
+    }
+}
+
+fn gateway_api_url(path: &str) -> String {
+    format!("{}{}", config::get().agent_gateway_base_url, path)
+}
+
+fn kanban_json_response(status: StatusCode, body: &str) -> Response {
+    match serde_json::from_str::<Value>(body) {
+        Ok(value) => (status, Json(value)).into_response(),
+        Err(_) => kanban_error(
+            StatusCode::BAD_GATEWAY,
+            "Agent gateway returned invalid kanban JSON.",
+        ),
+    }
+}
+
+fn kanban_error(status: StatusCode, message: &str) -> Response {
+    (status, Json(json!({ "status": "error", "error": message }))).into_response()
+}
+
+fn kanban_forbidden() -> Response {
+    kanban_error(StatusCode::FORBIDDEN, "Agent access denied.")
+}
+
+async fn request_json(method: &str, url: &str, body: Option<&str>) -> Result<String, String> {
     let target = HttpTarget::parse(url)?;
     let mut stream = TcpStream::connect((&target.host[..], target.port))
         .await
         .map_err(|error| format!("Agent gateway connect failed: {error}"))?;
+    let body = body.unwrap_or("");
     let request = format!(
-        "POST {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: application/json\r\nAccept: application/json\r\nConnection: close\r\nContent-Length: {len}\r\n\r\n{body}",
+        "{method} {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: application/json\r\nAccept: application/json\r\nConnection: close\r\nContent-Length: {len}\r\n\r\n{body}",
+        method = method,
         path = target.path,
         host = target.host_header(),
         len = body.as_bytes().len(),
@@ -284,6 +562,18 @@ fn cookie_value(headers: &HeaderMap, name: &str) -> Option<String> {
         }
     }
     None
+}
+
+fn encode_path_segment(value: &str) -> String {
+    value
+        .bytes()
+        .flat_map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' => {
+                vec![byte as char]
+            }
+            _ => format!("%{byte:02X}").chars().collect(),
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone)]

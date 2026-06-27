@@ -9,6 +9,7 @@ for (const root of roots) {
   const submit = form?.querySelector("button[type='submit']");
   const session = root.dataset.session || "default";
   const notesKey = `akurai-agent-notes:${session}`;
+  const csrf = form?.querySelector("input[name='_csrf']")?.value || "";
   let running = false;
   const toolPanels = new Set([
     "tasks",
@@ -17,7 +18,6 @@ for (const root of roots) {
     "notes",
     "passvault",
     "cron",
-    "kanban",
     "curator",
   ]);
 
@@ -150,7 +150,6 @@ for (const root of roots) {
       return;
     }
 
-    const csrf = form.querySelector("input[name='_csrf']")?.value || "";
     const body = new URLSearchParams();
     body.set("prompt", text);
     body.set("_csrf", csrf);
@@ -234,7 +233,10 @@ for (const root of roots) {
     });
 
     panel.querySelectorAll("[data-panel-trigger]").forEach((button) => {
-      button.addEventListener("click", () => openPanel(button.dataset.panelTrigger));
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        openPanel(button.dataset.panelTrigger);
+      });
     });
 
     const notes = panel.querySelector("[data-notes-editor]");
@@ -255,6 +257,9 @@ for (const root of roots) {
         );
       });
     }
+
+    const kanban = panel.querySelector("[data-kanban-board]");
+    if (kanban) initKanbanPanel(kanban);
   };
 
   const openPanel = (key) => {
@@ -275,7 +280,10 @@ for (const root of roots) {
   };
 
   root.querySelectorAll("[data-panel-trigger]").forEach((button) => {
-    button.addEventListener("click", () => openPanel(button.dataset.panelTrigger));
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      openPanel(button.dataset.panelTrigger);
+    });
   });
 
   root.querySelectorAll("[data-agent-prompt]").forEach((button) => {
@@ -283,4 +291,270 @@ for (const root of roots) {
   });
 
   form?.addEventListener("submit", submitStream);
+
+  if (location.pathname === "/agent/kanban") {
+    openPanel("kanban");
+  }
+
+  async function kanbanFetch(path, options = {}) {
+    const headers = {
+      Accept: "application/json",
+      ...(options.body ? { "Content-Type": "application/json", "X-CSRF-Token": csrf } : {}),
+    };
+    const response = await fetch(path, {
+      credentials: "same-origin",
+      ...options,
+      headers: { ...headers, ...(options.headers || {}) },
+    });
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = { status: "error", error: "Invalid JSON response." };
+    }
+    if (!response.ok || payload.status === "error") {
+      throw new Error(payload.error || `Request failed with HTTP ${response.status}`);
+    }
+    return payload;
+  }
+
+  function initKanbanPanel(kanban) {
+    const boardSelect = kanban.querySelector("[data-kanban-board-select]");
+    const includeDone = kanban.querySelector("[data-kanban-include-done]");
+    const statusEl = kanban.querySelector("[data-kanban-status]");
+    const metricsEl = kanban.querySelector("[data-kanban-metrics]");
+    const detailEl = kanban.querySelector("[data-kanban-detail]");
+    const createForm = kanban.querySelector("[data-kanban-create]");
+    let board = boardSelect?.value || "default";
+
+    const setKanbanStatus = (text) => {
+      if (statusEl) statusEl.textContent = text;
+      setStatus(text || "Kanban open");
+    };
+
+    const loadBoards = async () => {
+      const payload = await kanbanFetch("/agent/kanban/boards");
+      const boards = Array.isArray(payload.boards) && payload.boards.length
+        ? payload.boards
+        : [{ slug: "default", title: "Default" }];
+      boardSelect.replaceChildren(
+        ...boards.map((item) => {
+          const option = document.createElement("option");
+          option.value = item.slug || "default";
+          option.textContent = item.title || item.slug || "Default";
+          return option;
+        }),
+      );
+      if (!boards.some((item) => item.slug === board)) board = boards[0].slug || "default";
+      boardSelect.value = board;
+    };
+
+    const loadBoard = async () => {
+      setKanbanStatus("Loading board");
+      const done = includeDone?.checked ? "?include_done=1" : "";
+      const payload = await kanbanFetch(`/agent/kanban/board/${encodeURIComponent(board)}${done}`);
+      renderMetrics(payload.diagnostics);
+      renderBoard(Array.isArray(payload.tasks) ? payload.tasks : []);
+      setKanbanStatus("Board loaded");
+    };
+
+    const renderMetrics = (diagnostics) => {
+      if (!metricsEl) return;
+      const items = diagnostics
+        ? [
+            ["Boards", diagnostics.boards],
+            ["Tasks", diagnostics.tasks],
+            ["Open", diagnostics.open_tasks],
+            ["Blocked", diagnostics.blocked_tasks],
+            ["Done", diagnostics.done_tasks],
+            ["Claims", diagnostics.running_claims],
+          ]
+        : [];
+      metricsEl.replaceChildren(
+        ...items.map(([label, value]) => {
+          const span = document.createElement("span");
+          span.className = "kanban-metric";
+          span.textContent = `${label}: ${value ?? 0}`;
+          return span;
+        }),
+      );
+    };
+
+    const renderBoard = (tasks) => {
+      const grouped = { todo: [], doing: [], blocked: [], done: [] };
+      for (const task of tasks) {
+        const status = grouped[task.status] ? task.status : "todo";
+        grouped[status].push(task);
+      }
+      for (const [status, items] of Object.entries(grouped)) {
+        const column = kanban.querySelector(`[data-kanban-column="${status}"]`);
+        const count = column?.querySelector("h3 b");
+        const list = column?.querySelector("div");
+        if (count) count.textContent = String(items.length);
+        if (!list) continue;
+        list.replaceChildren(...items.map((task) => taskCard(task)));
+      }
+      const navCount = root.querySelector("[data-kanban-nav-count]");
+      if (navCount) navCount.textContent = String(tasks.filter((task) => task.status !== "done").length);
+    };
+
+    const taskCard = (task) => {
+      const card = document.createElement("article");
+      card.className = "kanban-card";
+      card.dataset.status = task.status || "todo";
+
+      const title = document.createElement("p");
+      title.className = "kanban-card-title";
+      title.textContent = task.title || task.id;
+
+      const meta = document.createElement("p");
+      meta.className = "kanban-card-meta";
+      meta.textContent = [task.id, task.assignee ? `@${task.assignee}` : null]
+        .filter(Boolean)
+        .join(" · ");
+
+      const desc = document.createElement("p");
+      desc.className = "kanban-card-desc";
+      desc.textContent = task.description || "";
+
+      const actions = document.createElement("div");
+      actions.className = "kanban-card-actions";
+      actions.append(
+        actionButton("Start", () => updateStatus(task.id, "doing")),
+        actionButton("Block", () => updateStatus(task.id, "blocked")),
+        actionButton("Done", () => updateStatus(task.id, "done")),
+        actionButton("Todo", () => updateStatus(task.id, "todo")),
+        actionButton("Claim", () => claimTask(task.id)),
+        actionButton("Details", () => showTask(task.id)),
+      );
+
+      card.append(title, meta);
+      if (task.description) card.append(desc);
+      card.append(actions);
+      return card;
+    };
+
+    const actionButton = (label, handler) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.addEventListener("click", handler);
+      return button;
+    };
+
+    const updateStatus = async (taskId, nextStatus) => {
+      await kanbanFetch(`/agent/kanban/tasks/${encodeURIComponent(taskId)}/status`, {
+        method: "POST",
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      await loadBoard();
+    };
+
+    const claimTask = async (taskId) => {
+      await kanbanFetch(`/agent/kanban/tasks/${encodeURIComponent(taskId)}/claim`, {
+        method: "POST",
+        body: "{}",
+      });
+      await showTask(taskId);
+      await loadBoard();
+    };
+
+    const assignTask = async (taskId) => {
+      const assignee = window.prompt("Assignee");
+      if (assignee === null) return;
+      await kanbanFetch(`/agent/kanban/tasks/${encodeURIComponent(taskId)}/assign`, {
+        method: "POST",
+        body: JSON.stringify({ assignee }),
+      });
+      await showTask(taskId);
+      await loadBoard();
+    };
+
+    const showTask = async (taskId) => {
+      const payload = await kanbanFetch(`/agent/kanban/tasks/${encodeURIComponent(taskId)}`);
+      const task = payload.task || {};
+      detailEl.hidden = false;
+      detailEl.replaceChildren();
+
+      const title = document.createElement("h3");
+      title.textContent = task.title || taskId;
+      const meta = document.createElement("p");
+      meta.textContent = `${task.id || taskId} · ${task.status || "todo"}${task.assignee ? ` · @${task.assignee}` : ""}`;
+      const desc = document.createElement("p");
+      desc.textContent = task.description || "No description.";
+
+      const comments = document.createElement("ul");
+      for (const comment of payload.comments || []) {
+        const item = document.createElement("li");
+        item.textContent = `${comment.author || "operator"}: ${comment.body || ""}`;
+        comments.append(item);
+      }
+
+      const note = document.createElement("textarea");
+      note.placeholder = "Comment";
+      const actions = document.createElement("div");
+      actions.className = "kanban-detail-actions";
+      actions.append(
+        actionButton("Assign", () => assignTask(taskId)),
+        actionButton("Heartbeat", async () => {
+          await kanbanFetch(`/agent/kanban/tasks/${encodeURIComponent(taskId)}/heartbeat`, {
+            method: "POST",
+            body: JSON.stringify({ note: "web ui" }),
+          });
+          await showTask(taskId);
+        }),
+        actionButton("Comment", async () => {
+          const body = note.value.trim();
+          if (!body) return;
+          await kanbanFetch(`/agent/kanban/tasks/${encodeURIComponent(taskId)}/comments`, {
+            method: "POST",
+            body: JSON.stringify({ body }),
+          });
+          note.value = "";
+          await showTask(taskId);
+        }),
+      );
+      detailEl.append(title, meta, desc, comments, note, actions);
+    };
+
+    createForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(createForm);
+      await kanbanFetch("/agent/kanban/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          board,
+          title: String(formData.get("title") || ""),
+          assignee: String(formData.get("assignee") || ""),
+          description: String(formData.get("description") || ""),
+        }),
+      });
+      createForm.reset();
+      await loadBoards();
+      await loadBoard();
+    });
+
+    boardSelect?.addEventListener("change", async () => {
+      board = boardSelect.value || "default";
+      await loadBoard();
+    });
+    includeDone?.addEventListener("change", loadBoard);
+    kanban.querySelector("[data-kanban-refresh]")?.addEventListener("click", loadBoard);
+    kanban.querySelector("[data-kanban-reclaim]")?.addEventListener("click", async () => {
+      await kanbanFetch("/agent/kanban/reclaim", { method: "POST", body: "{}" });
+      await loadBoard();
+    });
+    kanban.querySelector("[data-kanban-dispatch]")?.addEventListener("click", async () => {
+      const payload = await kanbanFetch("/agent/kanban/dispatch", {
+        method: "POST",
+        body: JSON.stringify({ dry_run: true, max_claims: 3 }),
+      });
+      const count = payload.dispatch?.candidates?.length ?? payload.dispatch?.claimed?.length ?? 0;
+      setKanbanStatus(`Dispatch checked ${count} task${count === 1 ? "" : "s"}`);
+    });
+
+    loadBoards()
+      .then(loadBoard)
+      .catch((error) => setKanbanStatus(error instanceof Error ? error.message : "Kanban failed"));
+  }
 }
