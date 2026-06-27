@@ -121,9 +121,11 @@ body {
 .agent-new-task,
 .agent-mode,
 .agent-nav a,
-.agent-nav span,
+.agent-nav-item,
 .agent-account a {
+  appearance: none;
   min-height: 34px;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -134,7 +136,9 @@ body {
   color: var(--muted);
   background: transparent;
   text-decoration: none;
+  font: inherit;
   font-size: 13px;
+  cursor: pointer;
 }
 
 .agent-new-task {
@@ -163,11 +167,11 @@ body {
 }
 
 .agent-mode-active,
-.agent-nav .active,
+.agent-nav-item.active,
 .agent-new-task:hover,
 .agent-mode:hover,
 .agent-nav a:hover,
-.agent-nav span:hover,
+.agent-nav-item:hover,
 .agent-account a:hover {
   color: var(--fg);
   border-color: var(--soft-border);
@@ -234,11 +238,21 @@ body {
   font: 12px/1.2 var(--mono);
 }
 
-.agent-meta span {
+.agent-meta button {
+  appearance: none;
   padding: 4px 8px;
   border: 1px solid var(--soft-border);
   border-radius: 999px;
   background: color-mix(in srgb, var(--panel) 52%, transparent);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.agent-meta button:hover,
+.agent-meta button.active {
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
 }
 
 .agent-timeline {
@@ -285,13 +299,21 @@ body {
   margin-top: 22px;
 }
 
-.agent-suggestions span {
+.agent-suggestions button {
+  appearance: none;
   padding: 8px 11px;
   border: 1px solid var(--soft-border);
   border-radius: 999px;
   color: var(--muted);
   background: color-mix(in srgb, var(--panel) 50%, transparent);
+  font: inherit;
   font-size: 13px;
+  cursor: pointer;
+}
+
+.agent-suggestions button:hover {
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
 }
 
 .agent-event {
@@ -348,6 +370,131 @@ body {
 
 .agent-run-details summary::-webkit-details-marker {
   display: none;
+}
+
+.agent-tool-panel {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 16px;
+  border: 1px solid var(--soft-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 72%, var(--bg));
+  box-shadow: var(--shadow);
+}
+
+.agent-tool-panel[hidden] {
+  display: none;
+}
+
+.agent-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.agent-panel-head h2 {
+  margin: 0;
+  color: var(--fg);
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+.agent-panel-head p,
+.agent-panel-status {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.agent-panel-close,
+.agent-panel-actions button {
+  appearance: none;
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 1px solid var(--soft-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-2) 46%, transparent);
+  color: var(--fg);
+  font: 13px/1.2 var(--font-sans);
+  cursor: pointer;
+}
+
+.agent-panel-close {
+  color: var(--muted);
+}
+
+.agent-panel-close:hover,
+.agent-panel-actions button:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+}
+
+.agent-panel-grid,
+.agent-panel-list {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-panel-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.agent-panel-grid div,
+.agent-panel-list article {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--soft-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-2) 68%, transparent);
+}
+
+.agent-panel-grid dt {
+  margin: 0 0 4px;
+  color: color-mix(in srgb, var(--muted) 74%, var(--bg));
+  font: 11px/1.2 var(--mono);
+  text-transform: uppercase;
+}
+
+.agent-panel-grid dd {
+  margin: 0;
+  color: var(--fg);
+  font: 12px/1.35 var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.agent-panel-list article {
+  display: grid;
+  gap: 3px;
+}
+
+.agent-panel-list b {
+  color: var(--fg);
+  font-weight: 650;
+}
+
+.agent-panel-list span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.agent-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.agent-notes-editor {
+  min-height: 150px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--soft-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-2) 68%, transparent);
+  color: var(--fg);
+  font: 14px/1.55 var(--font-sans);
+  resize: vertical;
 }
 
 .agent-tool-grid {
@@ -479,6 +626,10 @@ body {
   }
 
   .agent-tool-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-panel-grid {
     grid-template-columns: 1fr;
   }
 }

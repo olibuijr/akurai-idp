@@ -26,6 +26,7 @@ const APPLE_TOUCH_ICON_PNG: &[u8] = include_bytes!("../assets/apple-touch-icon.p
 const THEME_JS: &[u8] = include_bytes!("../assets/theme.js");
 const THEMES_CSS: &[u8] = include_bytes!("../assets/themes.css");
 const LANG_JS: &[u8] = include_bytes!("../assets/lang.js");
+const AGENT_JS: &[u8] = include_bytes!("../assets/agent.js");
 
 #[tokio::main]
 async fn main() {
@@ -96,6 +97,7 @@ async fn main() {
         .route("/theme.js", get(serve_theme_js))
         .route("/themes.css", get(serve_themes_css))
         .route("/lang.js", get(serve_lang_js))
+        .route("/agent.js", get(serve_agent_js))
         // Health check
         .route("/health", get(health))
         // 404 catch-all
@@ -234,6 +236,15 @@ async fn serve_lang_js() -> Response<Body> {
         .header(header::CONTENT_TYPE, "text/javascript; charset=utf-8")
         .header(header::CACHE_CONTROL, "public, max-age=3600")
         .body(Body::from(LANG_JS.to_vec()))
+        .unwrap()
+}
+
+async fn serve_agent_js() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/javascript; charset=utf-8")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .body(Body::from(AGENT_JS.to_vec()))
         .unwrap()
 }
 

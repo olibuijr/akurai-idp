@@ -17,10 +17,10 @@ pub(crate) fn agent_body(
         None => render_ready_timeline(),
     };
     let session_id = agent_session_id(user);
-    let scope_id = agent_scope_id(user);
+    let panels = render_panel_templates(user, &cfg.agent_provider, &cfg.agent_model);
 
     format!(
-        r#"<section class="agent-os chat-root" aria-label="AkurAI-RustAgent">
+        r#"<section class="agent-os chat-root" aria-label="AkurAI-RustAgent" data-agent-ui data-session="{session_id}">
   <aside class="agent-sidebar" aria-label="Workspace">
     <div class="agent-product">
       <div class="agent-avatar" aria-hidden="true">{initials}</div>
@@ -28,25 +28,25 @@ pub(crate) fn agent_body(
     </div>
     <a class="agent-new-task" href="/agent">New chat</a>
     <nav class="agent-modebar" aria-label="Modes">
-      <span class="agent-mode agent-mode-active" data-icon="C">Chat</span>
-      <span class="agent-mode" data-icon="T">Tasks</span>
-      <span class="agent-mode" data-icon="P">Projects</span>
+      <button type="button" class="agent-mode agent-mode-active" data-icon="C" data-panel-trigger="chat">Chat</button>
+      <button type="button" class="agent-mode" data-icon="T" data-panel-trigger="tasks">Tasks</button>
+      <button type="button" class="agent-mode" data-icon="P" data-panel-trigger="projects">Projects</button>
     </nav>
     <div class="agent-section">
       <h2>Workspace</h2>
       <nav class="agent-nav" aria-label="Workspace state">
-        <span class="active">Current run <b class="agent-count">live</b></span>
-        <span>AGY <b class="agent-count">context</b></span>
-        <span>Notes <b class="agent-count">local</b></span>
-        <span>Passvault <b class="agent-count">sealed</b></span>
+        <button type="button" class="agent-nav-item active" data-panel-trigger="run">Current run <b class="agent-count">live</b></button>
+        <button type="button" class="agent-nav-item" data-panel-trigger="agy">AGY <b class="agent-count">context</b></button>
+        <button type="button" class="agent-nav-item" data-panel-trigger="notes">Notes <b class="agent-count">local</b></button>
+        <button type="button" class="agent-nav-item" data-panel-trigger="passvault">Passvault <b class="agent-count">sealed</b></button>
       </nav>
     </div>
     <div class="agent-section">
       <h2>Queues</h2>
       <nav class="agent-nav" aria-label="Queues">
-        <span>Cron <b class="agent-count">ready</b></span>
-        <span>Kanban <b class="agent-count">ready</b></span>
-        <span>Curator <b class="agent-count">ready</b></span>
+        <button type="button" class="agent-nav-item" data-panel-trigger="cron">Cron <b class="agent-count">ready</b></button>
+        <button type="button" class="agent-nav-item" data-panel-trigger="kanban">Kanban <b class="agent-count">ready</b></button>
+        <button type="button" class="agent-nav-item" data-panel-trigger="curator">Curator <b class="agent-count">ready</b></button>
       </nav>
     </div>
     <div class="agent-section agent-account">
@@ -62,12 +62,12 @@ pub(crate) fn agent_body(
         <p class="agent-subtitle">AkurAI-RustAgent</p>
       </div>
       <div class="agent-meta" aria-label="Runtime">
-        <span>{provider}</span>
-        <span>{model}</span>
+        <button type="button" data-panel-trigger="run">Ready</button>
       </div>
     </header>
 
     <div class="agent-timeline chat-thread" aria-live="polite">
+      <section class="agent-tool-panel" data-agent-panel hidden></section>
       {timeline}
     </div>
 
@@ -75,30 +75,26 @@ pub(crate) fn agent_body(
       <input type="hidden" name="_csrf" value="{csrf}">
       <textarea id="prompt" name="prompt" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" aria-label="Message RustAgent" placeholder="Message RustAgent...">{prompt}</textarea>
       <div class="agent-composer-footer">
-        <span class="agent-state">{scope_id}</span>
+        <span class="agent-state" data-agent-status>Ready</span>
         <button type="submit" class="btn btn-primary">Run</button>
       </div>
     </form>
   </section>
 
-  <aside class="agent-context" aria-label="Run details">
-    {context}
-  </aside>
+  <aside class="agent-context" aria-label="Run details"></aside>
   <div class="agent-protocol" hidden data-session="{session_id}">
     analysis commentary final tool_call tool_result approval question edit artifact system error
     clarify.request approval.request sudo.request secret.request terminal.read.request
   </div>
+  {panels}
 </section>"#,
         initials = esc_html(&agent_initials(&user.email)),
-        provider = esc_html(&cfg.agent_provider),
-        model = esc_html(&cfg.agent_model),
         csrf = esc_html(csrf),
         max_prompt = MAX_PROMPT_CHARS,
         prompt = esc_html(prompt),
         session_id = esc_html(&session_id),
-        scope_id = esc_html(&scope_id),
         timeline = timeline,
-        context = render_context(user),
+        panels = panels,
     )
 }
 
@@ -126,9 +122,9 @@ fn render_ready_timeline() -> String {
   <h2>What should we work on?</h2>
   <p>RustAgent is connected to the stable gateway.</p>
   <div class="agent-suggestions" aria-label="Suggestions">
-    <span>Inspect rust-agent</span>
-    <span>Plan a deploy</span>
-    <span>Open AGY context</span>
+    <button type="button" data-agent-prompt="Inspect the current AkurAI-RustAgent status and tell me the next concrete fixes.">Inspect rust-agent</button>
+    <button type="button" data-agent-prompt="Plan the next AkurAI-RustAgent deploy. Include risks, checks, and rollback.">Plan a deploy</button>
+    <button type="button" data-agent-prompt="Use AGY context and notes to summarize what matters before we continue.">Open AGY context</button>
   </div>
 </section>"#
         .to_string()
@@ -205,26 +201,152 @@ fn render_tool_meta(outcome: &AgentOutcome) -> String {
         .join("")
 }
 
-fn render_context(user: &AuthUser) -> String {
+fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> String {
     let session_id = agent_session_id(user);
     let scope_id = agent_scope_id(user);
 
     format!(
-        r#"<div class="agent-context-grid">
-  <section class="agent-context-card">
-    <h3>Run</h3>
-    <p>{email}</p>
-    <p class="mono">{scope}</p>
-    <p class="mono">{session}</p>
-  </section>
-  <section class="agent-context-card">
-    <h3>Workspace</h3>
-    <p>AGY, notes, passvault, cron, kanban, curator.</p>
-  </section>
-</div>"#,
+        r#"<template data-panel-template="run">
+  <div class="agent-panel-head">
+    <div><h2>Current run</h2><p>{email}</p></div>
+    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
+  </div>
+  <dl class="agent-panel-grid">
+    <div><dt>Provider</dt><dd>{provider}</dd></div>
+    <div><dt>Model</dt><dd>{model}</dd></div>
+    <div><dt>Scope</dt><dd>{scope}</dd></div>
+    <div><dt>Session</dt><dd>{session}</dd></div>
+  </dl>
+  <div class="agent-panel-actions">
+    <button type="button" data-agent-prompt="Check the current RustAgent run state and list any blocked or risky items.">Check run</button>
+    <button type="button" data-agent-prompt="Before making changes, ask me for any confirmations RustAgent needs.">Ask confirmations</button>
+  </div>
+</template>
+
+<template data-panel-template="tasks">
+  <div class="agent-panel-head">
+    <div><h2>Tasks</h2><p>Work queue for this tenant agent.</p></div>
+    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
+  </div>
+  <div class="agent-panel-list">
+    <article><b>Review open work</b><span>Summarize active RustAgent tasks and gaps.</span></article>
+    <article><b>Create from chat</b><span>Turn the current conversation into a concrete task.</span></article>
+    <article><b>Confirm before action</b><span>Collect approvals before destructive or credentialed steps.</span></article>
+  </div>
+  <div class="agent-panel-actions">
+    <button type="button" data-agent-prompt="Review my open RustAgent tasks and group them by priority.">Review tasks</button>
+    <button type="button" data-agent-prompt="Create a concise task plan from this conversation and wait for confirmation.">Create task</button>
+  </div>
+</template>
+
+<template data-panel-template="projects">
+  <div class="agent-panel-head">
+    <div><h2>Projects</h2><p>AkurAI workspaces connected to this agent.</p></div>
+    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
+  </div>
+  <div class="agent-panel-list">
+    <article><b>AkurAI-RustAgent</b><span>Hermes parity, gateway, CLI/TUI, persistent AGY context.</span></article>
+    <article><b>AkurAI IDP</b><span>Agent console, login, tenant routing, auth surface.</span></article>
+    <article><b>AkurAI Framework</b><span>Shared theme registry and console components.</span></article>
+  </div>
+  <div class="agent-panel-actions">
+    <button type="button" data-agent-prompt="Inspect the AkurAI-RustAgent project and report the highest-impact incomplete UI/runtime work.">Inspect project</button>
+    <button type="button" data-agent-prompt="Compare AkurAI IDP and AkurAI-RustAgent UI responsibilities and suggest the clean boundary.">Check boundary</button>
+  </div>
+</template>
+
+<template data-panel-template="agy">
+  <div class="agent-panel-head">
+    <div><h2>AGY context</h2><p>Personal agent context, durable notes, and preferences.</p></div>
+    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
+  </div>
+  <div class="agent-panel-list">
+    <article><b>Identity</b><span>Tenant agent for olibuijr@olibuijr.com.</span></article>
+    <article><b>Unique features</b><span>Persistent AGY context, notes, and passvault-aware requests.</span></article>
+    <article><b>Operating rule</b><span>Ask for confirmation when a tool action needs approval.</span></article>
+  </div>
+  <div class="agent-panel-actions">
+    <button type="button" data-agent-prompt="Load AGY context for this tenant and summarize the durable preferences that matter now.">Summarize AGY</button>
+    <button type="button" data-agent-prompt="Use AGY context, notes, and passvault boundaries before planning the next step.">Use context</button>
+  </div>
+</template>
+
+<template data-panel-template="notes">
+  <div class="agent-panel-head">
+    <div><h2>Notes</h2><p>Local working notes for this browser session.</p></div>
+    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
+  </div>
+  <textarea class="agent-notes-editor" data-notes-editor placeholder="Write working notes for this agent..."></textarea>
+  <div class="agent-panel-actions">
+    <button type="button" data-save-notes>Save notes</button>
+    <button type="button" data-use-notes>Use notes</button>
+  </div>
+  <p class="agent-panel-status" data-notes-status></p>
+</template>
+
+<template data-panel-template="passvault">
+  <div class="agent-panel-head">
+    <div><h2>Passvault</h2><p>Credential requests stay confirmation-gated.</p></div>
+    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
+  </div>
+  <div class="agent-panel-list">
+    <article><b>Sealed by default</b><span>No credential is shown in the UI.</span></article>
+    <article><b>Confirm first</b><span>RustAgent should ask before using a secret.</span></article>
+  </div>
+  <div class="agent-panel-actions">
+    <button type="button" data-agent-prompt="Prepare a passvault-backed request. Ask me exactly what secret or confirmation you need before using it.">Request secret</button>
+    <button type="button" data-agent-prompt="Audit whether the next task needs passvault access. If yes, ask for confirmation first.">Check access</button>
+  </div>
+</template>
+
+<template data-panel-template="cron">
+  <div class="agent-panel-head">
+    <div><h2>Cron</h2><p>Scheduled agent work.</p></div>
+    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
+  </div>
+  <div class="agent-panel-list">
+    <article><b>Daily health</b><span>Check deploy state, gateway health, and parity drift.</span></article>
+    <article><b>Follow-up sweep</b><span>Find stale tasks and unfinished UI surfaces.</span></article>
+  </div>
+  <div class="agent-panel-actions">
+    <button type="button" data-agent-prompt="Draft a cron schedule for RustAgent health checks and ask before enabling anything.">Draft schedule</button>
+  </div>
+</template>
+
+<template data-panel-template="kanban">
+  <div class="agent-panel-head">
+    <div><h2>Kanban</h2><p>Task board for active agent work.</p></div>
+    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
+  </div>
+  <div class="agent-panel-list">
+    <article><b>Todo</b><span>Untriaged UI and Hermes parity gaps.</span></article>
+    <article><b>Doing</b><span>Current console completion work.</span></article>
+    <article><b>Review</b><span>Live checks, screenshots, and deploy smoke.</span></article>
+  </div>
+  <div class="agent-panel-actions">
+    <button type="button" data-agent-prompt="Create a Kanban view for the current RustAgent/UI work and identify what is actually blocked.">Build board</button>
+  </div>
+</template>
+
+<template data-panel-template="curator">
+  <div class="agent-panel-head">
+    <div><h2>Curator</h2><p>Cleanup and quality pass.</p></div>
+    <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
+  </div>
+  <div class="agent-panel-list">
+    <article><b>Remove dead UI</b><span>Find controls that do not map to a real workflow.</span></article>
+    <article><b>Tighten copy</b><span>Reduce status noise and internal implementation labels.</span></article>
+    <article><b>Verify live</b><span>Use screenshots and smoke prompts after deploy.</span></article>
+  </div>
+  <div class="agent-panel-actions">
+    <button type="button" data-agent-prompt="Act as curator: identify UI bloat, dead controls, and the smallest fixes to make this console feel finished.">Run curator</button>
+  </div>
+</template>"#,
         email = esc_html(&user.email),
         scope = esc_html(&scope_id),
         session = esc_html(&session_id),
+        provider = esc_html(provider),
+        model = esc_html(model),
     )
 }
 
@@ -259,6 +381,9 @@ mod tests {
         assert!(html.contains("AkurAI-RustAgent"));
         assert!(html.contains("Passvault"));
         assert!(html.contains("Kanban"));
+        assert!(html.contains("data-panel-trigger=\"notes\""));
+        assert!(html.contains("data-use-notes"));
+        assert!(html.contains("data-agent-prompt"));
         assert!(html.contains("approval.request"));
         assert!(html.contains("tool_call"));
     }

@@ -785,6 +785,7 @@ pub fn console_page_with_theme(
   </style>
   <link rel="stylesheet" href="/themes.css" />
   <script type="module" src="/theme.js"></script>
+  <script type="module" src="/agent.js"></script>
 </head>
 <body>
 <main class="console-wrap">
@@ -873,5 +874,6 @@ mod tests {
         let html = console_page("Agent", "<section>Agent</section>");
         assert!(html.contains("console-card"));
         assert!(html.contains("AkurAI-RustAgent"));
+        assert!(html.contains(r#"/agent.js"#));
     }
 }
