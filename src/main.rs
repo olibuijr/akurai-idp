@@ -9,7 +9,7 @@ use axum::{
     extract::Request,
     http::{header, Response, StatusCode},
     middleware as axum_mw,
-    response::IntoResponse,
+    response::{IntoResponse, Redirect},
     routing::get,
     Extension, Json, Router,
 };
@@ -89,6 +89,9 @@ async fn main() {
         // be merged at the root — nesting under "/account" double-prefixes every route
         // to `/account/account/...` and 404s the real ones (incl. the "Account" nav link).
         .merge(routes::account::router())
+        // Bare root: apps link to the issuer's bare domain for "Manage your account",
+        // so send `/` to the account page (which itself redirects to /login if needed).
+        .route("/", get(root_redirect))
         // Admin API
         .nest("/admin", admin_router)
         // Static assets
@@ -250,6 +253,12 @@ async fn serve_agent_js() -> Response<Body> {
 
 async fn health() -> impl IntoResponse {
     Json(json!({"ok": true, "service": "akurai-idp"}))
+}
+
+/// Bare root `/` → the account page. Relying-party apps point their "Manage your
+/// account" links at the issuer's bare domain; without this the IDP 404s there.
+async fn root_redirect() -> Redirect {
+    Redirect::to("/account")
 }
 
 async fn not_found() -> impl IntoResponse {
