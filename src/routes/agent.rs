@@ -1,12 +1,15 @@
+use async_stream::stream;
 use axum::{
     Form, Router,
+    body::{Body, Bytes},
     extract::Extension,
     http::{HeaderMap, StatusCode, header},
     response::{Html, IntoResponse, Response},
-    routing::get,
+    routing::{get, post},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
+use std::convert::Infallible;
 use std::time::Instant;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -20,7 +23,9 @@ pub(crate) const MAX_PROMPT_CHARS: usize = 8_000;
 const MAX_RESPONSE_BYTES: usize = 512 * 1024;
 
 pub fn router() -> Router {
-    Router::new().route("/agent", get(agent_page).post(agent_submit))
+    Router::new()
+        .route("/agent", get(agent_page).post(agent_submit))
+        .route("/agent/stream", post(agent_stream))
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,18 +62,8 @@ async fn agent_submit(
     let theme = agent_theme(&headers);
     let prompt = form.prompt.unwrap_or_default();
     let prompt = prompt.trim();
-    if prompt.is_empty() {
-        let outcome = AgentOutcome::error("Prompt is empty.");
-        return Html(console_page_with_theme(
-            "Agent Console",
-            &agent_body(&user, &csrf, prompt, Some(&outcome)),
-            AGENT_OS_STYLES,
-            Some(&theme),
-        ))
-        .into_response();
-    }
-    if prompt.chars().count() > MAX_PROMPT_CHARS {
-        let outcome = AgentOutcome::error("Prompt is too long for this console.");
+    if let Some(message) = validate_prompt(prompt) {
+        let outcome = AgentOutcome::error(message);
         return Html(console_page_with_theme(
             "Agent Console",
             &agent_body(&user, &csrf, prompt, Some(&outcome)),
@@ -91,6 +86,48 @@ async fn agent_submit(
     .into_response()
 }
 
+async fn agent_stream(
+    Extension(user): Extension<AuthUser>,
+    Form(form): Form<AgentForm>,
+) -> Response {
+    if !agent_allowed(&user.email) {
+        return (StatusCode::FORBIDDEN, "Agent access denied.").into_response();
+    }
+
+    let prompt = form.prompt.unwrap_or_default().trim().to_string();
+    if let Some(message) = validate_prompt(&prompt) {
+        return sse_text_response(stream_event_text(
+            "error",
+            json!({
+                "ok": false,
+                "response": message,
+            }),
+        ));
+    }
+
+    let body_stream = stream! {
+        yield Ok::<Bytes, Infallible>(Bytes::from(stream_event_text(
+            "start",
+            json!({
+                "ok": true,
+                "status": "started",
+            }),
+        )));
+
+        let outcome = match query_agent(&user, &prompt).await {
+            Ok(outcome) => outcome,
+            Err(error) => AgentOutcome::error(&error),
+        };
+
+        yield Ok::<Bytes, Infallible>(Bytes::from(stream_event_text(
+            "final",
+            outcome_stream_payload(&outcome),
+        )));
+    };
+
+    sse_body_response(Body::from_stream(body_stream))
+}
+
 fn forbidden_page(headers: &HeaderMap, user: &AuthUser) -> Response {
     let theme = agent_theme(headers);
     (
@@ -103,6 +140,16 @@ fn forbidden_page(headers: &HeaderMap, user: &AuthUser) -> Response {
         )),
     )
         .into_response()
+}
+
+fn validate_prompt(prompt: &str) -> Option<&'static str> {
+    if prompt.is_empty() {
+        return Some("Prompt is empty.");
+    }
+    if prompt.chars().count() > MAX_PROMPT_CHARS {
+        return Some("Prompt is too long for this console.");
+    }
+    None
 }
 
 async fn query_agent(user: &AuthUser, prompt: &str) -> Result<AgentOutcome, String> {
@@ -120,6 +167,41 @@ async fn query_agent(user: &AuthUser, prompt: &str) -> Result<AgentOutcome, Stri
     let started = Instant::now();
     let response = post_json(&cfg.agent_gateway_url, &body.to_string()).await?;
     AgentOutcome::from_gateway_json(&response, started.elapsed().as_millis() as u64)
+}
+
+fn outcome_stream_payload(outcome: &AgentOutcome) -> Value {
+    json!({
+        "ok": outcome.ok,
+        "response": &outcome.response,
+        "provider": &outcome.provider,
+        "model": &outcome.model,
+        "scope_id": &outcome.scope_id,
+        "session_id": &outcome.session_id,
+        "job_id": outcome.job_id,
+        "latency_ms": outcome.latency_ms,
+        "tool_call_id": outcome.tool_call_id(),
+    })
+}
+
+fn stream_event_text(event: &str, data: Value) -> String {
+    let data = serde_json::to_string(&data).unwrap_or_else(|_| {
+        r#"{"ok":false,"response":"Agent stream serialization failed."}"#.to_string()
+    });
+    format!("event: {event}\ndata: {data}\n\n")
+}
+
+fn sse_text_response(event: String) -> Response {
+    sse_body_response(Body::from(event))
+}
+
+fn sse_body_response(body: Body) -> Response {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/event-stream; charset=utf-8")
+        .header(header::CACHE_CONTROL, "no-cache, no-transform")
+        .header("x-accel-buffering", "no")
+        .body(body)
+        .unwrap()
 }
 
 async fn post_json(url: &str, body: &str) -> Result<String, String> {
@@ -351,5 +433,19 @@ mod tests {
         assert_eq!(outcome.scope_id, "scope");
         assert_eq!(outcome.job_id, Some(7));
         assert_eq!(outcome.latency_ms, Some(123));
+    }
+
+    #[test]
+    fn validates_stream_prompt() {
+        assert_eq!(validate_prompt(""), Some("Prompt is empty."));
+        assert_eq!(validate_prompt("hello"), None);
+    }
+
+    #[test]
+    fn formats_stream_event() {
+        let event = stream_event_text("final", json!({"ok": true, "response": "hello"}));
+        assert!(event.starts_with("event: final\n"));
+        assert!(event.contains(r#""response":"hello""#));
+        assert!(event.ends_with("\n\n"));
     }
 }

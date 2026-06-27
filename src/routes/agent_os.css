@@ -588,6 +588,10 @@ body {
   box-shadow: none;
 }
 
+.agent-composer-busy {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--soft-border));
+}
+
 .agent-composer-footer {
   display: flex;
   justify-content: space-between;
@@ -613,6 +617,11 @@ body {
   background: var(--accent);
   color: color-mix(in srgb, var(--fg) 8%, white);
   box-shadow: none;
+}
+
+.agent-os .btn-primary:disabled {
+  cursor: progress;
+  opacity: 0.62;
 }
 
 .agent-context {
