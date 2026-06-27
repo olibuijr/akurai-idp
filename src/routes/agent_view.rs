@@ -20,11 +20,11 @@ pub(crate) fn agent_body(
     let panels = render_panel_templates(user, &cfg.agent_provider, &cfg.agent_model);
 
     format!(
-        r#"<section class="agent-os chat-root" aria-label="AkurAI-RustAgent" data-agent-ui data-session="{session_id}">
+        r#"<section class="agent-os chat-root" aria-label="AkurAI Agent" data-agent-ui data-session="{session_id}">
   <aside class="agent-sidebar" aria-label="Workspace">
     <div class="agent-product">
       <div class="agent-avatar" aria-hidden="true">{initials}</div>
-      <div class="agent-brand">RustAgent<small>Hermes runtime</small></div>
+      <div class="agent-brand">AkurAI<small>Personal agent</small></div>
     </div>
     <a class="agent-new-task" href="/agent">New chat</a>
     <div class="agent-section">
@@ -43,7 +43,7 @@ pub(crate) fn agent_body(
     <header class="agent-head">
       <div>
         <h1 class="agent-title">olibuijr</h1>
-        <p class="agent-subtitle">AkurAI-RustAgent</p>
+        <p class="agent-subtitle">Personal agent</p>
       </div>
       <div class="agent-meta" aria-label="Runtime">
         <button type="button" data-panel-trigger="tools">Tools</button>
@@ -56,9 +56,9 @@ pub(crate) fn agent_body(
       {timeline}
     </div>
 
-    <form class="agent-composer chat-composer" method="post" action="" aria-label="Message RustAgent">
+    <form class="agent-composer chat-composer" method="post" action="" aria-label="Message your agent">
       <input type="hidden" name="_csrf" value="{csrf}">
-      <textarea id="prompt" name="prompt" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" aria-label="Message RustAgent" placeholder="Message RustAgent...">{prompt}</textarea>
+      <textarea id="prompt" name="prompt" maxlength="{max_prompt}" required spellcheck="false" autocomplete="off" aria-label="Message your agent" placeholder="Message your agent...">{prompt}</textarea>
       <div class="agent-composer-footer">
         <span class="agent-state" data-agent-status>Ready</span>
         <button type="submit" class="btn btn-primary">Run</button>
@@ -85,7 +85,7 @@ pub(crate) fn agent_body(
 
 pub(crate) fn forbidden_body(user: &AuthUser) -> String {
     format!(
-        r#"<section class="agent-os chat-root" aria-label="AkurAI-RustAgent">
+        r#"<section class="agent-os chat-root" aria-label="AkurAI Agent">
   <section class="agent-main" style="grid-column: 1 / -1;">
     <div class="agent-timeline chat-thread">
       <article class="agent-event agent-event-error chat-message" data-channel="error">
@@ -93,7 +93,7 @@ pub(crate) fn forbidden_body(user: &AuthUser) -> String {
           <span class="agent-channel">system</span>
           <span class="agent-time">access denied</span>
         </div>
-        <pre class="chat-message-content">{email} is not enabled for RustAgent.</pre>
+        <pre class="chat-message-content">{email} is not enabled for this agent.</pre>
       </article>
     </div>
   </section>
@@ -105,10 +105,10 @@ pub(crate) fn forbidden_body(user: &AuthUser) -> String {
 fn render_ready_timeline() -> String {
     r#"<section class="agent-empty chat-message" data-channel="system" data-kind="ready">
   <h2>What should we work on?</h2>
-  <p>RustAgent is connected to the stable gateway.</p>
+  <p>Your agent is ready.</p>
   <div class="agent-suggestions" aria-label="Suggestions">
-    <button type="button" data-agent-prompt="Inspect the current AkurAI-RustAgent status and tell me the next concrete fixes.">Inspect rust-agent</button>
-    <button type="button" data-agent-prompt="Plan the next AkurAI-RustAgent deploy. Include risks, checks, and rollback.">Plan a deploy</button>
+    <button type="button" data-agent-prompt="Inspect the current agent status and tell me the next concrete fixes.">Inspect agent</button>
+    <button type="button" data-agent-prompt="Plan the next agent deploy. Include risks, checks, and rollback.">Plan a deploy</button>
     <button type="button" data-panel-trigger="tools">Open tools</button>
   </div>
 </section>"#
@@ -158,7 +158,7 @@ fn render_timeline(prompt: &str, outcome: &AgentOutcome) -> String {
         status_class = status_class,
         status = status,
         channel = if outcome.ok {
-            "rustagent"
+            "agent"
         } else {
             "gateway error"
         },
@@ -220,8 +220,8 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
     <div><dt>Session</dt><dd>{session}</dd></div>
   </dl>
   <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Check the current RustAgent run state and list any blocked or risky items.">Check run</button>
-    <button type="button" data-agent-prompt="Before making changes, ask me for any confirmations RustAgent needs.">Ask confirmations</button>
+    <button type="button" data-agent-prompt="Check the current agent run state and list any blocked or risky items.">Check run</button>
+    <button type="button" data-agent-prompt="Before making changes, ask me for any confirmations this agent needs.">Ask confirmations</button>
   </div>
 </template>
 
@@ -231,12 +231,12 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
     <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <div class="agent-panel-list">
-    <article><b>Review open work</b><span>Summarize active RustAgent tasks and gaps.</span></article>
+    <article><b>Review open work</b><span>Summarize active agent tasks and gaps.</span></article>
     <article><b>Create from chat</b><span>Turn the current conversation into a concrete task.</span></article>
     <article><b>Confirm before action</b><span>Collect approvals before destructive or credentialed steps.</span></article>
   </div>
   <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Review my open RustAgent tasks and group them by priority.">Review tasks</button>
+    <button type="button" data-agent-prompt="Review my open agent tasks and group them by priority.">Review tasks</button>
     <button type="button" data-agent-prompt="Create a concise task plan from this conversation and wait for confirmation.">Create task</button>
   </div>
 </template>
@@ -247,13 +247,13 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
     <button type="button" class="agent-panel-close" data-panel-close aria-label="Close">Close</button>
   </div>
   <div class="agent-panel-list">
-    <article><b>AkurAI-RustAgent</b><span>Hermes parity, gateway, CLI/TUI, persistent AGY context.</span></article>
+    <article><b>Agent Core</b><span>Gateway, CLI/TUI, and persistent AGY context.</span></article>
     <article><b>AkurAI IDP</b><span>Agent console, login, tenant routing, auth surface.</span></article>
     <article><b>AkurAI Framework</b><span>Shared theme registry and console components.</span></article>
   </div>
   <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Inspect the AkurAI-RustAgent project and report the highest-impact incomplete UI/runtime work.">Inspect project</button>
-    <button type="button" data-agent-prompt="Compare AkurAI IDP and AkurAI-RustAgent UI responsibilities and suggest the clean boundary.">Check boundary</button>
+    <button type="button" data-agent-prompt="Inspect the agent core project and report the highest-impact incomplete UI/runtime work.">Inspect project</button>
+    <button type="button" data-agent-prompt="Compare AkurAI IDP and agent core UI responsibilities and suggest the clean boundary.">Check boundary</button>
   </div>
 </template>
 
@@ -293,7 +293,7 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
   </div>
   <div class="agent-panel-list">
     <article><b>Sealed by default</b><span>No credential is shown in the UI.</span></article>
-    <article><b>Confirm first</b><span>RustAgent should ask before using a secret.</span></article>
+    <article><b>Confirm first</b><span>The agent should ask before using a secret.</span></article>
   </div>
   <div class="agent-panel-actions">
     <button type="button" data-agent-prompt="Prepare a passvault-backed request. Ask me exactly what secret or confirmation you need before using it.">Request secret</button>
@@ -311,7 +311,7 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
     <article><b>Follow-up sweep</b><span>Find stale tasks and unfinished UI surfaces.</span></article>
   </div>
   <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Draft a cron schedule for RustAgent health checks and ask before enabling anything.">Draft schedule</button>
+    <button type="button" data-agent-prompt="Draft a cron schedule for agent health checks and ask before enabling anything.">Draft schedule</button>
   </div>
 </template>
 
@@ -326,7 +326,7 @@ fn render_panel_templates(user: &AuthUser, provider: &str, model: &str) -> Strin
     <article><b>Review</b><span>Live checks, screenshots, and deploy smoke.</span></article>
   </div>
   <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Create a Kanban view for the current RustAgent/UI work and identify what is actually blocked.">Build board</button>
+    <button type="button" data-agent-prompt="Create a Kanban view for the current agent UI work and identify what is actually blocked.">Build board</button>
   </div>
 </template>
 
@@ -380,7 +380,7 @@ mod tests {
     #[test]
     fn body_contains_agent_os_surfaces() {
         let html = agent_body(&user(), "csrf", "", None);
-        assert!(html.contains("AkurAI-RustAgent"));
+        assert!(html.contains("AkurAI"));
         assert!(html.contains("Passvault"));
         assert!(html.contains("Kanban"));
         assert!(html.contains("data-panel-trigger=\"notes\""));

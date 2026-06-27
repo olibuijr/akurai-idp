@@ -793,7 +793,7 @@ pub fn console_page_with_theme(
     {WORDMARK}
     <div class="console-status">
       <span class="console-dot">agent.olibuijr.com</span>
-      <span class="console-dot">AkurAI-RustAgent</span>
+      <span class="console-dot">AkurAI Agent</span>
     </div>
   </header>
   <div class="console-card">
@@ -873,7 +873,7 @@ mod tests {
     fn console_page_contains_agent_shell() {
         let html = console_page("Agent", "<section>Agent</section>");
         assert!(html.contains("console-card"));
-        assert!(html.contains("AkurAI-RustAgent"));
+        assert!(html.contains("AkurAI Agent"));
         assert!(html.contains(r#"/agent.js"#));
     }
 }
