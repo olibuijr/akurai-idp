@@ -1,0 +1,18 @@
+name = "akurai-idp"
+domain = "auth.olibuijr.com"
+port = 3500
+repo = "olibuijr/AkurAI-IDP"
+build = "cargo build --release --target x86_64-unknown-linux-musl"
+artifact = "target/x86_64-unknown-linux-musl/release/akurai-idp"
+version_file = "VERSION"
+cargo_version = "package"
+changelog = "CHANGELOG.md"
+changelog_mode = "hybrid"
+gate_fmt = true
+gate_clippy = true
+gate_test = true
+
+[service]
+user = "idp"
+env_file = "/etc/akurai-idp/idp.env"
+exec_start = "{bin} --webroot"

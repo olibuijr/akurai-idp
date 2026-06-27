@@ -103,6 +103,7 @@ async fn main() {
         .route("/agent.js", get(serve_agent_js))
         // Health check
         .route("/health", get(health))
+        .route("/api/health", get(api_health))
         // 404 catch-all
         .fallback(not_found)
         // Global middleware: secure headers + default rate limit
@@ -253,6 +254,14 @@ async fn serve_agent_js() -> Response<Body> {
 
 async fn health() -> impl IntoResponse {
     Json(json!({"ok": true, "service": "akurai-idp"}))
+}
+
+async fn api_health() -> impl IntoResponse {
+    Json(json!({
+        "app": "akurai-idp",
+        "version": env!("CARGO_PKG_VERSION"),
+        "status": "ok"
+    }))
 }
 
 /// Bare root `/` → the account page. Relying-party apps point their "Manage your
