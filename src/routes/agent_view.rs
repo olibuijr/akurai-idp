@@ -55,6 +55,7 @@ fn agent_page_body(
     let sidebar = render_sidebar(page);
     let main = match page {
         AgentPage::Chat => render_chat_main(prompt, outcome, csrf),
+        AgentPage::Kanban => render_kanban_main(),
         _ => render_workspace_main(user, page, &cfg.agent_provider, &cfg.agent_model),
     };
 
@@ -297,7 +298,7 @@ fn render_tool_meta(outcome: &AgentOutcome) -> String {
 fn render_page_content(user: &AuthUser, page: AgentPage, provider: &str, model: &str) -> String {
     match page {
         AgentPage::Chat => String::new(),
-        AgentPage::Kanban => render_kanban_page(),
+        AgentPage::Kanban => render_kanban_board(),
         AgentPage::Run => render_run_page(user, provider, model),
     }
 }
@@ -328,11 +329,33 @@ fn render_run_page(user: &AuthUser, provider: &str, model: &str) -> String {
     )
 }
 
-fn render_kanban_page() -> String {
-    r#"<div class="agent-panel-head">
-    <div><h2>Kanban</h2><p>Rust Agent board, tasks, claims, and project delivery state.</p></div>
-  </div>
-  <section class="kanban-shell" data-kanban-board>
+// The Kanban surface is a full-viewport board, not a centered card. It gets its
+// own `agent-main` so the board fills the entire main column (full width + full
+// height) with columns that stretch and scroll independently — see the
+// `.agent-kanban-*` rules in agent_os.css.
+fn render_kanban_main() -> String {
+    format!(
+        r#"<section class="agent-main agent-kanban-main" aria-label="Kanban">
+    <header class="agent-head">
+      <div>
+        <h1 class="agent-title">Kanban</h1>
+        <p class="agent-subtitle">Rust Agent board, tasks, claims, and delivery state.</p>
+      </div>
+      <div class="agent-meta" aria-label="Runtime">
+        <a href="/agent">Chat</a>
+        <a href="/agent/run">Run details</a>
+      </div>
+    </header>
+    <div class="agent-kanban-stage">
+      {board}
+    </div>
+  </section>"#,
+        board = render_kanban_board(),
+    )
+}
+
+fn render_kanban_board() -> String {
+    r#"<section class="kanban-shell" data-kanban-board>
     <div class="kanban-toolbar">
       <label>Board <select data-kanban-board-select aria-label="Kanban board"></select></label>
       <label class="kanban-check"><input type="checkbox" data-kanban-include-done checked> Done</label>
@@ -355,11 +378,7 @@ fn render_kanban_page() -> String {
     </div>
     <section class="kanban-detail" data-kanban-detail hidden></section>
     <p class="agent-panel-status" data-kanban-status></p>
-  </section>
-  <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Review the Rust Agent kanban board, summarize blocked tasks, and propose the next project-management action.">Review board</button>
-    <button type="button" data-agent-prompt="Create a practical agile plan from the active kanban work, including next task, owner, and verification step.">Plan sprint</button>
-  </div>"#
+  </section>"#
         .to_string()
 }
 

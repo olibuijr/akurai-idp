@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format: Keep a Changelo
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-06-29
+
+- Kanban: full-viewport board layout — drop the centered card wrapper, give the board its own full-height main so columns stretch and scroll independently.
+
+
 ## [0.1.2] - 2026-06-29
 
 - Add suite theme picker to agent console: serve /themes.json registry + mount the Framework theme selector (17 themes, all families) in the sidebar Account section, matching every other AkurAI-Framework app.
