@@ -20,8 +20,8 @@ pub fn sha256(input: &str) -> String {
 
 /// Base64url-encode bytes (no padding, URL-safe alphabet).
 pub fn base64url(input: &[u8]) -> String {
-    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use base64::Engine;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     URL_SAFE_NO_PAD.encode(input)
 }
 

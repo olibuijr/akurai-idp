@@ -460,62 +460,13 @@ body {
   border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
 }
 
-.agent-panel-grid,
-.agent-panel-list {
-  display: grid;
-  gap: 8px;
-}
-
-.agent-tool-launcher {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.agent-tool-launcher button,
-.agent-tool-launcher a {
-  appearance: none;
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-  min-height: 78px;
-  padding: 11px;
-  border: 1px solid var(--soft-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bg-2) 68%, transparent);
-  color: var(--fg);
-  font: inherit;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.agent-tool-launcher button:hover,
-.agent-tool-launcher a:hover {
-  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
-  background: color-mix(in srgb, var(--panel) 68%, var(--bg));
-}
-
-.agent-tool-launcher b {
-  font-size: 13px;
-}
-
-.agent-tool-launcher span {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.agent-route-launcher {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
 .agent-panel-grid {
+  display: grid;
+  gap: 8px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.agent-panel-grid div,
-.agent-panel-list article {
+.agent-panel-grid div {
   min-width: 0;
   padding: 10px;
   border: 1px solid var(--soft-border);
@@ -537,38 +488,11 @@ body {
   overflow-wrap: anywhere;
 }
 
-.agent-panel-list article {
-  display: grid;
-  gap: 3px;
-}
-
-.agent-panel-list b {
-  color: var(--fg);
-  font-weight: 650;
-}
-
-.agent-panel-list span {
-  color: var(--muted);
-  font-size: 13px;
-}
-
 .agent-panel-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
-}
-
-.agent-notes-editor {
-  min-height: 150px;
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--soft-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bg-2) 68%, transparent);
-  color: var(--fg);
-  font: 14px/1.55 var(--font-sans);
-  resize: vertical;
 }
 
 .kanban-shell {
@@ -939,14 +863,6 @@ body {
   }
 
   .agent-panel-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .agent-tool-launcher {
-    grid-template-columns: 1fr;
-  }
-
-  .agent-route-launcher {
     grid-template-columns: 1fr;
   }
 

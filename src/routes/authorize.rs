@@ -38,7 +38,14 @@ async fn authorize_endpoint(
     // Validate required params
     let client_id = match &params.client_id {
         Some(c) if !c.is_empty() => c.clone(),
-        _ => return auth_error_redirect(None, params.state.as_deref(), "invalid_request", "Missing client_id"),
+        _ => {
+            return auth_error_redirect(
+                None,
+                params.state.as_deref(),
+                "invalid_request",
+                "Missing client_id",
+            );
+        }
     };
 
     let redirect_uri = match &params.redirect_uri {
@@ -100,15 +107,15 @@ async fn authorize_endpoint(
     }
 
     // PKCE validation (require S256 if code_challenge provided)
-    if let Some(ref method) = params.code_challenge_method {
-        if method != "S256" {
-            return auth_error_redirect(
-                Some(&redirect_uri),
-                params.state.as_deref(),
-                "invalid_request",
-                "Only S256 code_challenge_method is supported",
-            );
-        }
+    if let Some(ref method) = params.code_challenge_method
+        && method != "S256"
+    {
+        return auth_error_redirect(
+            Some(&redirect_uri),
+            params.state.as_deref(),
+            "invalid_request",
+            "Only S256 code_challenge_method is supported",
+        );
     }
     if params.code_challenge.is_some() && params.code_challenge_method.is_none() {
         return auth_error_redirect(
@@ -136,13 +143,18 @@ async fn authorize_endpoint(
                 urlencoded(requested_scopes),
                 urlencoded(params.state.as_deref().unwrap_or("")),
                 urlencoded(params.nonce.as_deref().unwrap_or("")),
-                params.code_challenge.as_ref().map(|c|
-                    format!("&code_challenge={}&code_challenge_method={}",
+                params
+                    .code_challenge
+                    .as_ref()
+                    .map(|c| format!(
+                        "&code_challenge={}&code_challenge_method={}",
                         urlencoded(c),
-                        urlencoded(params.code_challenge_method.as_deref().unwrap_or("S256")))
-                ).unwrap_or_default(),
+                        urlencoded(params.code_challenge_method.as_deref().unwrap_or("S256"))
+                    ))
+                    .unwrap_or_default(),
             );
-            return Redirect::to(&format!("/login?return_to={}", urlencoded(&return_url))).into_response();
+            return Redirect::to(&format!("/login?return_to={}", urlencoded(&return_url)))
+                .into_response();
         }
     };
 
@@ -252,7 +264,10 @@ fn auth_error_redirect(
 ) -> axum::response::Response {
     match redirect_uri {
         Some(uri) => {
-            let mut location = format!("{uri}?error={error}&error_description={}", urlencoded(description));
+            let mut location = format!(
+                "{uri}?error={error}&error_description={}",
+                urlencoded(description)
+            );
             if let Some(s) = state {
                 location.push_str(&format!("&state={}", urlencoded(s)));
             }
@@ -268,7 +283,12 @@ fn auth_error_page(description: &str) -> axum::response::Response {
 <html><head><title>Authorization Error</title></head>
 <body><h1>Authorization Error</h1><p>{description}</p></body></html>"#,
     );
-    (StatusCode::BAD_REQUEST, [("content-type", "text/html")], html).into_response()
+    (
+        StatusCode::BAD_REQUEST,
+        [("content-type", "text/html")],
+        html,
+    )
+        .into_response()
 }
 
 fn urlencoded(s: &str) -> String {

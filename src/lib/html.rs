@@ -31,10 +31,10 @@ impl Locale {
         if let Some(cookies) = cookie_header {
             for part in cookies.split(';') {
                 let part = part.trim();
-                if let Some(val) = part.strip_prefix("akurai-lang=") {
-                    if val.trim() == "en" {
-                        return Locale::En;
-                    }
+                if let Some(val) = part.strip_prefix("akurai-lang=")
+                    && val.trim() == "en"
+                {
+                    return Locale::En;
                 }
             }
         }

@@ -7,7 +7,9 @@ use super::crypto::generate_secure_token;
 pub fn generate_totp_secret(email: &str, issuer: &str) -> (String, String) {
     let secret = Secret::generate_secret();
     let base32 = secret.to_encoded().to_string();
-    let secret_bytes = secret.to_bytes().expect("failed to decode generated secret");
+    let secret_bytes = secret
+        .to_bytes()
+        .expect("failed to decode generated secret");
 
     // Build the otpauth URI manually since we don't have the `otpauth` feature
     // Format: otpauth://totp/ISSUER:EMAIL?secret=BASE32&issuer=ISSUER&algorithm=SHA1&digits=6&period=30
@@ -20,8 +22,7 @@ pub fn generate_totp_secret(email: &str, issuer: &str) -> (String, String) {
     );
 
     // Verify the secret works by constructing a TOTP (5-param, no otpauth feature)
-    let _totp = TOTP::new(Algorithm::SHA1, 6, 1, 30, secret_bytes)
-        .expect("failed to create TOTP");
+    let _totp = TOTP::new(Algorithm::SHA1, 6, 1, 30, secret_bytes).expect("failed to create TOTP");
 
     (base32, uri)
 }

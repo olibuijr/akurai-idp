@@ -9,7 +9,6 @@ for (const root of roots) {
   const session = root.dataset.session || "default";
   const page = root.dataset.agentPage || location.pathname;
   const isChatPage = page === "/agent";
-  const notesKey = `akurai-agent-notes:${session}`;
   const chatKey = `akurai-agent-chat:${session}`;
   const draftKey = `akurai-agent-draft:${session}`;
   const pendingPromptKey = `akurai-agent-pending-prompt:${session}`;
@@ -277,27 +276,6 @@ for (const root of roots) {
     }
   };
 
-  const initNotes = (container) => {
-    const notes = container.querySelector("[data-notes-editor]");
-    const notesStatus = container.querySelector("[data-notes-status]");
-    if (notes) {
-      notes.value = localStorage.getItem(notesKey) || "";
-      container.querySelector("[data-save-notes]")?.addEventListener("click", () => {
-        localStorage.setItem(notesKey, notes.value);
-        if (notesStatus) notesStatus.textContent = "Saved locally";
-        setStatus("Notes saved");
-      });
-      container.querySelector("[data-use-notes]")?.addEventListener("click", () => {
-        const text = notes.value.trim();
-        fillPrompt(
-          text
-            ? `Use these local notes as context and propose the next concrete action:\n\n${text}`
-            : "No local notes are saved yet. Ask me what to capture before continuing.",
-        );
-      });
-    }
-  };
-
   root.querySelectorAll("[data-agent-prompt]").forEach((button) => {
     button.addEventListener("click", () => fillPrompt(button.dataset.agentPrompt));
   });
@@ -309,7 +287,6 @@ for (const root of roots) {
   form?.addEventListener("submit", submitStream);
   restoreChat();
   restorePrompt();
-  initNotes(root);
   root.querySelectorAll("[data-kanban-board]").forEach(initKanbanPanel);
 
   async function kanbanFetch(path, options = {}) {

@@ -1,7 +1,7 @@
-use axum::{Json, Router, routing::get};
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::{Json, Router, routing::get};
 use serde_json::{Value, json};
 
 use crate::db::with_db;

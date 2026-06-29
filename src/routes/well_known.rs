@@ -7,7 +7,10 @@ use crate::lib::jwt::export_public_key_jwk;
 
 pub fn router() -> Router {
     Router::new()
-        .route("/.well-known/openid-configuration", get(openid_configuration))
+        .route(
+            "/.well-known/openid-configuration",
+            get(openid_configuration),
+        )
         .route("/jwks", get(jwks))
 }
 
@@ -45,9 +48,7 @@ async fn jwks() -> Json<Value> {
         })
         .expect("failed to query signing_keys")
         .filter_map(|r| r.ok())
-        .filter_map(|(kid, public_key, _alg)| {
-            export_public_key_jwk(&public_key, &kid).ok()
-        })
+        .filter_map(|(kid, public_key, _alg)| export_public_key_jwk(&public_key, &kid).ok())
         .collect()
     });
 

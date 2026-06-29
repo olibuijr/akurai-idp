@@ -1,3 +1,7 @@
+#![allow(clippy::result_large_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(special_module_name)]
+
 pub mod config;
 pub mod db;
 pub mod lib;
@@ -5,13 +9,13 @@ pub mod middleware;
 pub mod routes;
 
 use axum::{
+    Extension, Json, Router,
     body::Body,
     extract::Request,
-    http::{header, Response, StatusCode},
+    http::{Response, StatusCode, header},
     middleware as axum_mw,
     response::{IntoResponse, Redirect},
     routing::get,
-    Extension, Json, Router,
 };
 use serde_json::json;
 use subtle::ConstantTimeEq;
@@ -63,20 +67,16 @@ async fn main() {
     let app = Router::new()
         // Auth pages (login/mfa/logout) with CSRF
         .merge(
-            routes::auth_pages::router()
-                .layer(axum_mw::from_fn(middleware::csrf::csrf_protection))
+            routes::auth_pages::router().layer(axum_mw::from_fn(middleware::csrf::csrf_protection)),
         )
         // OIDC discovery
         .merge(routes::well_known::router())
         // OIDC endpoints
         .merge(
-            routes::authorize::router()
-                .layer(axum_mw::from_fn(middleware::auth::session_optional))
+            routes::authorize::router().layer(axum_mw::from_fn(middleware::auth::session_optional)),
         )
         .merge(routes::token::router())
-        .merge(
-            routes::userinfo::router().layer(axum_mw::from_fn(middleware::auth::bearer_auth)),
-        )
+        .merge(routes::userinfo::router().layer(axum_mw::from_fn(middleware::auth::bearer_auth)))
         .merge(routes::introspect::router())
         .merge(routes::revoke::router())
         // Authenticated agent console
@@ -117,16 +117,11 @@ async fn main() {
         .await
         .expect("failed to bind listener");
 
-    axum::serve(listener, app)
-        .await
-        .expect("server error");
+    axum::serve(listener, app).await.expect("server error");
 }
 
 /// Admin auth middleware: requires Bearer token matching IDP_ADMIN_TOKEN (constant-time compare).
-async fn admin_auth_middleware(
-    req: Request,
-    next: axum::middleware::Next,
-) -> impl IntoResponse {
+async fn admin_auth_middleware(req: Request, next: axum::middleware::Next) -> impl IntoResponse {
     let cfg = config::get();
 
     if cfg.admin_token.is_empty() {

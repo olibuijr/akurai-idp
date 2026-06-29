@@ -1,9 +1,9 @@
 use axum::{
+    Json, Router,
     extract::{Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post},
-    Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -63,7 +63,8 @@ async fn list_clients(Query(q): Query<ListQuery>) -> impl IntoResponse {
             ),
         };
         let mut stmt = conn.prepare(&sql)?;
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            params.iter().map(|p| p.as_ref()).collect();
         let rows = stmt.query_map(params_refs.as_slice(), |row| {
             let redirect_uris_raw: String = row.get(3)?;
             let grant_types_raw: String = row.get(4)?;
@@ -88,7 +89,11 @@ async fn list_clients(Query(q): Query<ListQuery>) -> impl IntoResponse {
 
     match result {
         Ok(clients) => Json(json!(clients)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -98,11 +103,20 @@ async fn create_client(Json(body): Json<CreateClient>) -> impl IntoResponse {
     let secret_hash = sha256(&client_secret);
     let now = chrono::Utc::now().timestamp();
 
-    let grant_types = body.grant_types.unwrap_or_else(|| vec!["authorization_code".to_string()]);
-    let scopes = body.scopes.unwrap_or_else(|| vec!["openid".to_string(), "profile".to_string(), "email".to_string()]);
+    let grant_types = body
+        .grant_types
+        .unwrap_or_else(|| vec!["authorization_code".to_string()]);
+    let scopes = body.scopes.unwrap_or_else(|| {
+        vec![
+            "openid".to_string(),
+            "profile".to_string(),
+            "email".to_string(),
+        ]
+    });
     let first_party = body.first_party.unwrap_or(false);
 
-    let redirect_uris_json = serde_json::to_string(&body.redirect_uris).unwrap_or_else(|_| "[]".to_string());
+    let redirect_uris_json =
+        serde_json::to_string(&body.redirect_uris).unwrap_or_else(|_| "[]".to_string());
     let grant_types_json = serde_json::to_string(&grant_types).unwrap_or_else(|_| "[]".to_string());
     let scopes_json = serde_json::to_string(&scopes).unwrap_or_else(|_| "[]".to_string());
 
@@ -122,33 +136,53 @@ async fn create_client(Json(body): Json<CreateClient>) -> impl IntoResponse {
                 None,
                 Some(&json!({"client_id": id, "name": body.name})),
             );
-            (StatusCode::CREATED, Json(json!({
-                "id": id,
-                "client_secret": client_secret,
-                "name": body.name,
-                "tenant_id": body.tenant_id,
-                "redirect_uris": body.redirect_uris,
-                "grant_types": grant_types,
-                "scopes": scopes,
-                "first_party": first_party
-            }))).into_response()
+            (
+                StatusCode::CREATED,
+                Json(json!({
+                    "id": id,
+                    "client_secret": client_secret,
+                    "name": body.name,
+                    "tenant_id": body.tenant_id,
+                    "redirect_uris": body.redirect_uris,
+                    "grant_types": grant_types,
+                    "scopes": scopes,
+                    "first_party": first_party
+                })),
+            )
+                .into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
 async fn delete_client(Path(id): Path<String>) -> impl IntoResponse {
-    let result = with_db(|conn| {
-        conn.execute("DELETE FROM clients WHERE id = ?1", [&id])
-    });
+    let result = with_db(|conn| conn.execute("DELETE FROM clients WHERE id = ?1", [&id]));
 
     match result {
-        Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "client not found"}))).into_response(),
+        Ok(0) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "client not found"})),
+        )
+            .into_response(),
         Ok(_) => {
-            audit::log_audit(None, None, audit::CLIENT_DELETED, None, Some(&json!({"client_id": id})));
+            audit::log_audit(
+                None,
+                None,
+                audit::CLIENT_DELETED,
+                None,
+                Some(&json!({"client_id": id})),
+            );
             Json(json!({"ok": true})).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -164,11 +198,25 @@ async fn rotate_secret(Path(id): Path<String>) -> impl IntoResponse {
     });
 
     match result {
-        Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "client not found"}))).into_response(),
+        Ok(0) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "client not found"})),
+        )
+            .into_response(),
         Ok(_) => {
-            audit::log_audit(None, None, audit::CLIENT_SECRET_ROTATED, None, Some(&json!({"client_id": id})));
+            audit::log_audit(
+                None,
+                None,
+                audit::CLIENT_SECRET_ROTATED,
+                None,
+                Some(&json!({"client_id": id})),
+            );
             Json(json!({"id": id, "client_secret": new_secret})).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }

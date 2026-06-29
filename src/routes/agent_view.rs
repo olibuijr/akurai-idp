@@ -9,15 +9,7 @@ pub const AGENT_OS_STYLES: &str = include_str!("agent_os.css");
 pub(crate) enum AgentPage {
     Chat,
     Kanban,
-    Tools,
     Run,
-    Tasks,
-    Projects,
-    Agy,
-    Notes,
-    Passvault,
-    Cron,
-    Curator,
 }
 
 impl AgentPage {
@@ -25,15 +17,7 @@ impl AgentPage {
         match self {
             Self::Chat => "Current conversation",
             Self::Kanban => "Kanban",
-            Self::Tools => "Tools",
             Self::Run => "Run details",
-            Self::Tasks => "Tasks",
-            Self::Projects => "Projects",
-            Self::Agy => "AGY context",
-            Self::Notes => "Notes",
-            Self::Passvault => "Passvault",
-            Self::Cron => "Cron",
-            Self::Curator => "Curator",
         }
     }
 
@@ -41,15 +25,7 @@ impl AgentPage {
         match self {
             Self::Chat => "/agent",
             Self::Kanban => "/agent/kanban",
-            Self::Tools => "/agent/tools",
             Self::Run => "/agent/run",
-            Self::Tasks => "/agent/tasks",
-            Self::Projects => "/agent/projects",
-            Self::Agy => "/agent/agy",
-            Self::Notes => "/agent/notes",
-            Self::Passvault => "/agent/passvault",
-            Self::Cron => "/agent/cron",
-            Self::Curator => "/agent/curator",
         }
     }
 }
@@ -162,33 +138,12 @@ fn render_sidebar(active: AgentPage) -> String {
       <nav class="agent-nav" aria-label="Workspace">
         {chat}
         {kanban}
-        {tools}
         {run}
-      </nav>
-    </div>
-    <div class="agent-section">
-      <h2>Agent surfaces</h2>
-      <nav class="agent-nav" aria-label="Agent surfaces">
-        {tasks}
-        {projects}
-        {agy}
-        {notes}
-        {passvault}
-        {cron}
-        {curator}
       </nav>
     </div>"#,
         chat = nav_link(AgentPage::Chat, active, Some("now")),
         kanban = nav_link(AgentPage::Kanban, active, Some("board")),
-        tools = nav_link(AgentPage::Tools, active, None),
         run = nav_link(AgentPage::Run, active, None),
-        tasks = nav_link(AgentPage::Tasks, active, None),
-        projects = nav_link(AgentPage::Projects, active, None),
-        agy = nav_link(AgentPage::Agy, active, None),
-        notes = nav_link(AgentPage::Notes, active, None),
-        passvault = nav_link(AgentPage::Passvault, active, None),
-        cron = nav_link(AgentPage::Cron, active, None),
-        curator = nav_link(AgentPage::Curator, active, None),
     )
 }
 
@@ -206,7 +161,6 @@ fn render_chat_main(prompt: &str, outcome: Option<&AgentOutcome>, csrf: &str) ->
       </div>
       <div class="agent-meta" aria-label="Runtime">
         <a href="/agent/kanban">Kanban</a>
-        <a href="/agent/tools">Tools</a>
         <a href="/agent/run">Run details</a>
       </div>
     </header>
@@ -242,7 +196,6 @@ fn render_workspace_main(user: &AuthUser, page: AgentPage, provider: &str, model
       <div class="agent-meta" aria-label="Runtime">
         <a href="/agent">Chat</a>
         <a href="/agent/kanban">Kanban</a>
-        <a href="/agent/tools">Tools</a>
       </div>
     </header>
     <div class="agent-page-scroll">
@@ -264,7 +217,7 @@ fn render_ready_timeline() -> String {
   <div class="agent-suggestions" aria-label="Suggestions">
     <button type="button" data-agent-prompt="Inspect the current agent status and tell me the next concrete fixes.">Inspect agent</button>
     <button type="button" data-agent-prompt="Plan the next agent deploy. Include risks, checks, and rollback.">Plan a deploy</button>
-    <a href="/agent/tools">Open tools</a>
+    <a href="/agent/kanban">Open kanban</a>
   </div>
 </section>"#
         .to_string()
@@ -341,68 +294,8 @@ fn render_page_content(user: &AuthUser, page: AgentPage, provider: &str, model: 
     match page {
         AgentPage::Chat => String::new(),
         AgentPage::Kanban => render_kanban_page(),
-        AgentPage::Tools => render_tools_page(),
         AgentPage::Run => render_run_page(user, provider, model),
-        AgentPage::Tasks => render_tasks_page(),
-        AgentPage::Projects => render_projects_page(),
-        AgentPage::Agy => render_agy_page(),
-        AgentPage::Notes => render_notes_page(),
-        AgentPage::Passvault => render_passvault_page(),
-        AgentPage::Cron => render_cron_page(),
-        AgentPage::Curator => render_curator_page(),
     }
-}
-
-fn render_tools_page() -> String {
-    let tools = [
-        (
-            AgentPage::Tasks,
-            "Plan, create, and review work without covering the chat.",
-        ),
-        (
-            AgentPage::Projects,
-            "Open AkurAI workspaces connected to this agent.",
-        ),
-        (
-            AgentPage::Agy,
-            "Review durable personal context for the current tenant.",
-        ),
-        (
-            AgentPage::Notes,
-            "Save local working notes for this browser session.",
-        ),
-        (
-            AgentPage::Passvault,
-            "Prepare confirmation-gated credential requests.",
-        ),
-        (AgentPage::Cron, "Draft scheduled checks and follow-ups."),
-        (
-            AgentPage::Kanban,
-            "Open the Rust Agent board, task, and claim workflow.",
-        ),
-        (
-            AgentPage::Curator,
-            "Find unfinished UI, noisy controls, and cleanup work.",
-        ),
-    ];
-    let links = tools
-        .into_iter()
-        .map(|(page, description)| {
-            format!(
-                r#"<a href="{path}"><b>{label}</b><span>{description}</span></a>"#,
-                path = page.path(),
-                label = page.title(),
-                description = esc_html(description),
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("");
-    format!(
-        r#"<div class="agent-panel-head">
-    <div><h2>Agent tools</h2><p>Use these pages when the conversation needs context, notes, credentials, or work queues.</p></div>
-  </div>
-  <div class="agent-tool-launcher agent-route-launcher">{links}</div>"#
-    )
 }
 
 fn render_run_page(user: &AuthUser, provider: &str, model: &str) -> String {
@@ -429,96 +322,6 @@ fn render_run_page(user: &AuthUser, provider: &str, model: &str) -> String {
         provider = esc_html(provider),
         model = esc_html(model),
     )
-}
-
-fn render_tasks_page() -> String {
-    r#"<div class="agent-panel-head">
-    <div><h2>Tasks</h2><p>Work queue for this tenant agent.</p></div>
-  </div>
-  <div class="agent-panel-list">
-    <article><b>Review open work</b><span>Summarize active agent tasks and gaps.</span></article>
-    <article><b>Create from chat</b><span>Turn the current conversation into a concrete task.</span></article>
-    <article><b>Confirm before action</b><span>Collect approvals before destructive or credentialed steps.</span></article>
-  </div>
-  <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Review my open agent tasks and group them by priority.">Review tasks</button>
-    <button type="button" data-agent-prompt="Create a concise task plan from this conversation and wait for confirmation.">Create task</button>
-  </div>"#
-        .to_string()
-}
-
-fn render_projects_page() -> String {
-    r#"<div class="agent-panel-head">
-    <div><h2>Projects</h2><p>AkurAI workspaces connected to this agent.</p></div>
-  </div>
-  <div class="agent-panel-list">
-    <article><b>Agent Core</b><span>Gateway, CLI/TUI, and persistent AGY context.</span></article>
-    <article><b>AkurAI IDP</b><span>Agent console, login, tenant routing, auth surface.</span></article>
-    <article><b>AkurAI Framework</b><span>Shared theme registry and console components.</span></article>
-  </div>
-  <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Inspect the agent core project and report the highest-impact incomplete UI/runtime work.">Inspect project</button>
-    <button type="button" data-agent-prompt="Compare AkurAI IDP and agent core UI responsibilities and suggest the clean boundary.">Check boundary</button>
-  </div>"#
-        .to_string()
-}
-
-fn render_agy_page() -> String {
-    r#"<div class="agent-panel-head">
-    <div><h2>AGY context</h2><p>Personal agent context, durable notes, and preferences.</p></div>
-  </div>
-  <div class="agent-panel-list">
-    <article><b>Identity</b><span>Tenant agent for olibuijr@olibuijr.com.</span></article>
-    <article><b>Unique features</b><span>Persistent AGY context, notes, and passvault-aware requests.</span></article>
-    <article><b>Operating rule</b><span>Ask for confirmation when a tool action needs approval.</span></article>
-  </div>
-  <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Load AGY context for this tenant and summarize the durable preferences that matter now.">Summarize AGY</button>
-    <button type="button" data-agent-prompt="Use AGY context, notes, and passvault boundaries before planning the next step.">Use context</button>
-  </div>"#
-        .to_string()
-}
-
-fn render_notes_page() -> String {
-    r#"<div class="agent-panel-head">
-    <div><h2>Notes</h2><p>Local working notes for this browser session.</p></div>
-  </div>
-  <textarea class="agent-notes-editor" data-notes-editor placeholder="Write working notes for this agent..."></textarea>
-  <div class="agent-panel-actions">
-    <button type="button" data-save-notes>Save notes</button>
-    <button type="button" data-use-notes>Use notes</button>
-  </div>
-  <p class="agent-panel-status" data-notes-status></p>"#
-        .to_string()
-}
-
-fn render_passvault_page() -> String {
-    r#"<div class="agent-panel-head">
-    <div><h2>Passvault</h2><p>Credential requests stay confirmation-gated.</p></div>
-  </div>
-  <div class="agent-panel-list">
-    <article><b>Sealed by default</b><span>No credential is shown in the UI.</span></article>
-    <article><b>Confirm first</b><span>The agent should ask before using a secret.</span></article>
-  </div>
-  <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Prepare a passvault-backed request. Ask me exactly what secret or confirmation you need before using it.">Request secret</button>
-    <button type="button" data-agent-prompt="Audit whether the next task needs passvault access. If yes, ask for confirmation first.">Check access</button>
-  </div>"#
-        .to_string()
-}
-
-fn render_cron_page() -> String {
-    r#"<div class="agent-panel-head">
-    <div><h2>Cron</h2><p>Scheduled agent work.</p></div>
-  </div>
-  <div class="agent-panel-list">
-    <article><b>Daily health</b><span>Check deploy state, gateway health, and parity drift.</span></article>
-    <article><b>Follow-up sweep</b><span>Find stale tasks and unfinished UI surfaces.</span></article>
-  </div>
-  <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Draft a cron schedule for agent health checks and ask before enabling anything.">Draft schedule</button>
-  </div>"#
-        .to_string()
 }
 
 fn render_kanban_page() -> String {
@@ -556,21 +359,6 @@ fn render_kanban_page() -> String {
         .to_string()
 }
 
-fn render_curator_page() -> String {
-    r#"<div class="agent-panel-head">
-    <div><h2>Curator</h2><p>Cleanup and quality pass.</p></div>
-  </div>
-  <div class="agent-panel-list">
-    <article><b>Remove dead UI</b><span>Find controls that do not map to a real workflow.</span></article>
-    <article><b>Tighten copy</b><span>Reduce status noise and internal implementation labels.</span></article>
-    <article><b>Verify live</b><span>Use screenshots and smoke prompts after deploy.</span></article>
-  </div>
-  <div class="agent-panel-actions">
-    <button type="button" data-agent-prompt="Act as curator: identify UI bloat, dead controls, and the smallest fixes to make this console feel finished.">Run curator</button>
-  </div>"#
-        .to_string()
-}
-
 fn agent_scope_id(user: &AuthUser) -> String {
     format!("idp:{}", user.tenant_id)
 }
@@ -600,10 +388,9 @@ mod tests {
     fn body_contains_agent_os_surfaces() {
         let html = agent_body(&user(), "csrf", "", None);
         assert!(html.contains("AkurAI"));
-        assert!(html.contains("Passvault"));
         assert!(html.contains("Kanban"));
         assert!(html.contains(r#"href="/agent/kanban""#));
-        assert!(html.contains(r#"href="/agent/notes""#));
+        assert!(html.contains(r#"href="/agent/run""#));
         assert!(!html.contains("data-panel-trigger"));
         assert!(!html.contains("data-agent-panel"));
         assert!(!html.contains("data-panel-template"));
@@ -611,6 +398,19 @@ mod tests {
         assert!(html.contains("data-agent-prompt"));
         assert!(html.contains("approval.request"));
         assert!(html.contains("tool_call"));
+    }
+
+    #[test]
+    fn sidebar_drops_agent_surfaces_slop() {
+        let html = agent_body(&user(), "csrf", "", None);
+        assert!(!html.contains("Agent surfaces"));
+        assert!(!html.contains(r#"href="/agent/tasks""#));
+        assert!(!html.contains(r#"href="/agent/projects""#));
+        assert!(!html.contains(r#"href="/agent/notes""#));
+        assert!(!html.contains(r#"href="/agent/passvault""#));
+        assert!(!html.contains(r#"href="/agent/cron""#));
+        assert!(!html.contains(r#"href="/agent/curator""#));
+        assert!(!html.contains(r#"href="/agent/tools""#));
     }
 
     #[test]
@@ -624,10 +424,11 @@ mod tests {
     }
 
     #[test]
-    fn notes_body_uses_route_not_overlay_template() {
-        let html = agent_static_page_body(&user(), "csrf", AgentPage::Notes);
-        assert!(html.contains(r#"data-agent-page="/agent/notes""#));
-        assert!(html.contains("data-use-notes"));
+    fn run_body_uses_route_and_shows_real_runtime() {
+        let html = agent_static_page_body(&user(), "csrf", AgentPage::Run);
+        assert!(html.contains(r#"data-agent-page="/agent/run""#));
+        assert!(html.contains("Current run"));
+        assert!(html.contains("olibuijr@olibuijr.com"));
         assert!(!html.contains("data-panel-template"));
     }
 

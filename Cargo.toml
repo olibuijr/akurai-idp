@@ -1,6 +1,6 @@
 [package]
 name = "akurai-idp"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Lightweight Rust OIDC/OAuth2 identity provider for AkurAI — replaces 96MB Node process"
 license = "MIT"

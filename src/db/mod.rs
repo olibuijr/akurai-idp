@@ -1,9 +1,9 @@
 pub mod schema;
 
-use rusqlite::Connection;
-use std::sync::Mutex;
-use std::sync::LazyLock;
 use crate::config;
+use rusqlite::Connection;
+use std::sync::LazyLock;
+use std::sync::Mutex;
 
 static DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
     let cfg = config::get();

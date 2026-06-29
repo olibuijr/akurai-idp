@@ -53,9 +53,7 @@ pub async fn rate_limit(request: Request<Body>, next: Next) -> Response<Body> {
 
     let (count, reset_at, remaining) = {
         let mut store = state.store.lock().unwrap();
-        let entry = store
-            .entry(ip)
-            .or_insert((0, current + state.window_ms));
+        let entry = store.entry(ip).or_insert((0, current + state.window_ms));
 
         if current >= entry.1 {
             // Window expired — reset
@@ -69,7 +67,7 @@ pub async fn rate_limit(request: Request<Body>, next: Next) -> Response<Body> {
     };
 
     if count > state.max_requests {
-        let retry_after = (reset_at.saturating_sub(current) + 999) / 1000;
+        let retry_after = reset_at.saturating_sub(current).div_ceil(1000);
         let body = json!({
             "error": "too_many_requests",
             "error_description": "Rate limit exceeded. Try again later.",
@@ -86,10 +84,7 @@ pub async fn rate_limit(request: Request<Body>, next: Next) -> Response<Body> {
             "x-ratelimit-reset",
             (reset_at / 1000).to_string().parse().unwrap(),
         );
-        headers.insert(
-            "retry-after",
-            retry_after.to_string().parse().unwrap(),
-        );
+        headers.insert("retry-after", retry_after.to_string().parse().unwrap());
         return resp;
     }
 

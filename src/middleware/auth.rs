@@ -140,8 +140,7 @@ pub async fn bearer_auth(request: Request<Body>, next: Next) -> Response<Body> {
     let cfg = config::get();
 
     // Mode 1: admin token match
-    if !cfg.admin_token.is_empty() && constant_time_equal(&token, &cfg.admin_token)
-    {
+    if !cfg.admin_token.is_empty() && constant_time_equal(&token, &cfg.admin_token) {
         return next.run(request).await;
     }
 
@@ -151,9 +150,7 @@ pub async fn bearer_auth(request: Request<Body>, next: Next) -> Response<Body> {
             .prepare("SELECT kid, public_key, alg FROM signing_keys WHERE active = 1")
             .ok()?;
         let keys: Vec<(String, String, String)> = stmt
-            .query_map([], |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-            })
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
             .ok()?
             .filter_map(|r| r.ok())
             .collect();

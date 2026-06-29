@@ -28,12 +28,11 @@ pub async fn csrf_protection(mut request: Request<Body>, next: Next) -> Response
     }
 
     // Skip CSRF for Bearer-authenticated requests (API clients)
-    if let Some(auth) = request.headers().get(header::AUTHORIZATION) {
-        if let Ok(val) = auth.to_str() {
-            if val.starts_with("Bearer ") {
-                return next.run(request).await;
-            }
-        }
+    if let Some(auth) = request.headers().get(header::AUTHORIZATION)
+        && let Ok(val) = auth.to_str()
+        && val.starts_with("Bearer ")
+    {
+        return next.run(request).await;
     }
 
     // For state-changing methods, verify double-submit cookie

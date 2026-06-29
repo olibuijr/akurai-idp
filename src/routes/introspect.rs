@@ -1,4 +1,6 @@
-use axum::{Json, Router, extract::Request, http::StatusCode, response::IntoResponse, routing::post};
+use axum::{
+    Json, Router, extract::Request, http::StatusCode, response::IntoResponse, routing::post,
+};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -27,8 +29,8 @@ async fn introspect_endpoint(request: Request) -> impl IntoResponse {
         Err(_) => return (StatusCode::OK, Json(json!({"active": false}))).into_response(),
     };
 
-    let mut params: IntrospectRequest = serde_json::from_slice(&body_bytes)
-        .unwrap_or_else(|_| parse_form_urlencoded(&body_bytes));
+    let mut params: IntrospectRequest =
+        serde_json::from_slice(&body_bytes).unwrap_or_else(|_| parse_form_urlencoded(&body_bytes));
 
     // Basic auth overrides body params
     if let Some(id) = basic_id {
@@ -39,7 +41,11 @@ async fn introspect_endpoint(request: Request) -> impl IntoResponse {
     }
 
     if params.client_id.is_none() {
-        return (StatusCode::UNAUTHORIZED, Json(json!({"error": "invalid_client"}))).into_response();
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "invalid_client"})),
+        )
+            .into_response();
     }
 
     let token = match params.token {

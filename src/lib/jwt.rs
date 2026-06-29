@@ -1,6 +1,6 @@
 use base64::Engine;
-use ed25519_dalek::{pkcs8::DecodePublicKey, SigningKey, VerifyingKey};
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use ed25519_dalek::{SigningKey, VerifyingKey, pkcs8::DecodePublicKey};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde_json::Value;
 
 use super::crypto::generate_secure_token;
@@ -46,7 +46,8 @@ pub fn sign_token(
     let mut payload = claims.clone();
     if let Some(obj) = payload.as_object_mut() {
         obj.entry("iat").or_insert(Value::from(now));
-        obj.entry("exp").or_insert(Value::from(now + expires_in_secs));
+        obj.entry("exp")
+            .or_insert(Value::from(now + expires_in_secs));
     }
 
     let encoding_key = EncodingKey::from_ed_pem(private_key_pem.as_bytes())
@@ -73,8 +74,8 @@ pub fn verify_token(token: &str, public_key_pem: &str) -> Result<Value, String> 
 /// Export the public key as a JWK object for a JWKS endpoint.
 /// The returned JSON object contains kty, crv, x, kid, alg, use.
 pub fn export_public_key_jwk(public_key_pem: &str, kid: &str) -> Result<Value, String> {
-    let verifying_key =
-        VerifyingKey::from_public_key_pem(public_key_pem).map_err(|e| format!("invalid public key: {e}"))?;
+    let verifying_key = VerifyingKey::from_public_key_pem(public_key_pem)
+        .map_err(|e| format!("invalid public key: {e}"))?;
 
     // Ed25519 JWK: kty=OKP, crv=Ed25519, x=base64url(raw 32-byte public key)
     let x = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(verifying_key.to_bytes());

@@ -28,15 +28,7 @@ pub fn router() -> Router {
     Router::new()
         .route("/agent", get(agent_page).post(agent_submit))
         .route("/agent/kanban", get(agent_kanban_page))
-        .route("/agent/tools", get(agent_tools_page))
         .route("/agent/run", get(agent_run_page))
-        .route("/agent/tasks", get(agent_tasks_page))
-        .route("/agent/projects", get(agent_projects_page))
-        .route("/agent/agy", get(agent_agy_page))
-        .route("/agent/notes", get(agent_notes_page))
-        .route("/agent/passvault", get(agent_passvault_page))
-        .route("/agent/cron", get(agent_cron_page))
-        .route("/agent/curator", get(agent_curator_page))
         .route("/agent/kanban/boards", get(kanban_boards))
         .route("/agent/kanban/board/{board}", get(kanban_board))
         .route("/agent/kanban/tasks", post(kanban_create_task))
@@ -130,43 +122,8 @@ async fn agent_kanban_page(headers: HeaderMap, Extension(user): Extension<AuthUs
     agent_workspace_page(headers, user, AgentPage::Kanban).await
 }
 
-async fn agent_tools_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
-    agent_workspace_page(headers, user, AgentPage::Tools).await
-}
-
 async fn agent_run_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
     agent_workspace_page(headers, user, AgentPage::Run).await
-}
-
-async fn agent_tasks_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
-    agent_workspace_page(headers, user, AgentPage::Tasks).await
-}
-
-async fn agent_projects_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
-    agent_workspace_page(headers, user, AgentPage::Projects).await
-}
-
-async fn agent_agy_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
-    agent_workspace_page(headers, user, AgentPage::Agy).await
-}
-
-async fn agent_notes_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
-    agent_workspace_page(headers, user, AgentPage::Notes).await
-}
-
-async fn agent_passvault_page(
-    headers: HeaderMap,
-    Extension(user): Extension<AuthUser>,
-) -> Response {
-    agent_workspace_page(headers, user, AgentPage::Passvault).await
-}
-
-async fn agent_cron_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
-    agent_workspace_page(headers, user, AgentPage::Cron).await
-}
-
-async fn agent_curator_page(headers: HeaderMap, Extension(user): Extension<AuthUser>) -> Response {
-    agent_workspace_page(headers, user, AgentPage::Curator).await
 }
 
 async fn agent_workspace_page(headers: HeaderMap, user: AuthUser, page: AgentPage) -> Response {
@@ -545,7 +502,7 @@ async fn request_json(method: &str, url: &str, body: Option<&str>) -> Result<Str
         method = method,
         path = target.path,
         host = target.host_header(),
-        len = body.as_bytes().len(),
+        len = body.len(),
         body = body,
     );
     stream

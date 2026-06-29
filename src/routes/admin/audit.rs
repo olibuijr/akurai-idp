@@ -1,10 +1,4 @@
-use axum::{
-    extract::Query,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-    Json, Router,
-};
+use axum::{Json, Router, extract::Query, http::StatusCode, response::IntoResponse, routing::get};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -72,12 +66,12 @@ async fn list_audit(Query(q): Query<AuditQuery>) -> impl IntoResponse {
             params.push(Box::new(evt.clone()));
             idx += 1;
         }
-        if let Some(ref since_str) = q.since {
-            if let Some(ts) = parse_since(since_str) {
-                conditions.push(format!("created_at >= ?{idx}"));
-                params.push(Box::new(ts));
-                idx += 1;
-            }
+        if let Some(ref since_str) = q.since
+            && let Some(ts) = parse_since(since_str)
+        {
+            conditions.push(format!("created_at >= ?{idx}"));
+            params.push(Box::new(ts));
+            idx += 1;
         }
 
         let where_clause = if conditions.is_empty() {
@@ -92,7 +86,8 @@ async fn list_audit(Query(q): Query<AuditQuery>) -> impl IntoResponse {
         params.push(Box::new(limit as i64));
 
         let mut stmt = conn.prepare(&sql)?;
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            params.iter().map(|p| p.as_ref()).collect();
         let rows = stmt.query_map(params_refs.as_slice(), |row| {
             let metadata_raw: Option<String> = row.get(5)?;
             let metadata = metadata_raw.and_then(|s| serde_json::from_str(&s).ok());
@@ -115,6 +110,10 @@ async fn list_audit(Query(q): Query<AuditQuery>) -> impl IntoResponse {
 
     match result {
         Ok(entries) => Json(json!(entries)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }

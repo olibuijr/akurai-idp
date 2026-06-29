@@ -12,7 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config;
 use crate::db::with_db;
 use crate::lib::audit::{self, log_audit_event};
-use crate::lib::crypto::{generate_secure_token, sha256, constant_time_equal};
+use crate::lib::crypto::{constant_time_equal, generate_secure_token, sha256};
 use crate::lib::jwt::sign_token;
 use crate::lib::pkce::verify_code_challenge;
 
@@ -41,11 +41,17 @@ async fn token_endpoint(request: Request) -> impl IntoResponse {
     // Parse body as form or JSON
     let body_bytes = match axum::body::to_bytes(request.into_body(), 1024 * 64).await {
         Ok(b) => b,
-        Err(_) => return token_error(StatusCode::BAD_REQUEST, "invalid_request", "Failed to read body"),
+        Err(_) => {
+            return token_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "Failed to read body",
+            );
+        }
     };
 
-    let mut params: TokenRequest = serde_json::from_slice(&body_bytes)
-        .unwrap_or_else(|_| parse_form_urlencoded(&body_bytes));
+    let mut params: TokenRequest =
+        serde_json::from_slice(&body_bytes).unwrap_or_else(|_| parse_form_urlencoded(&body_bytes));
 
     // Basic auth overrides body params for client credentials
     if let Some(id) = basic_client_id {
@@ -57,14 +63,24 @@ async fn token_endpoint(request: Request) -> impl IntoResponse {
 
     let grant_type = match &params.grant_type {
         Some(gt) => gt.as_str(),
-        None => return token_error(StatusCode::BAD_REQUEST, "invalid_request", "Missing grant_type"),
+        None => {
+            return token_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "Missing grant_type",
+            );
+        }
     };
 
     match grant_type {
         "authorization_code" => handle_authorization_code(params, &ip).await,
         "refresh_token" => handle_refresh_token(params, &ip).await,
         "client_credentials" => handle_client_credentials(params, &ip).await,
-        _ => token_error(StatusCode::BAD_REQUEST, "unsupported_grant_type", "Unsupported grant_type"),
+        _ => token_error(
+            StatusCode::BAD_REQUEST,
+            "unsupported_grant_type",
+            "Unsupported grant_type",
+        ),
     }
 }
 
@@ -75,11 +91,23 @@ async fn handle_authorization_code(params: TokenRequest, ip: &str) -> axum::resp
     };
     let client_id = match &params.client_id {
         Some(c) => c.clone(),
-        None => return token_error(StatusCode::BAD_REQUEST, "invalid_request", "Missing client_id"),
+        None => {
+            return token_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "Missing client_id",
+            );
+        }
     };
     let redirect_uri = match &params.redirect_uri {
         Some(r) => r.clone(),
-        None => return token_error(StatusCode::BAD_REQUEST, "invalid_request", "Missing redirect_uri"),
+        None => {
+            return token_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "Missing redirect_uri",
+            );
+        }
     };
 
     let now = now_secs();
@@ -111,7 +139,13 @@ async fn handle_authorization_code(params: TokenRequest, ip: &str) -> axum::resp
 
     let auth_code = match auth_code {
         Some(ac) => ac,
-        None => return token_error(StatusCode::BAD_REQUEST, "invalid_grant", "Invalid authorization code"),
+        None => {
+            return token_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_grant",
+                "Invalid authorization code",
+            );
+        }
     };
 
     // Validate
@@ -124,21 +158,41 @@ async fn handle_authorization_code(params: TokenRequest, ip: &str) -> axum::resp
             )
             .ok();
         });
-        return token_error(StatusCode::BAD_REQUEST, "invalid_grant", "Authorization code already used");
+        return token_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_grant",
+            "Authorization code already used",
+        );
     }
     if auth_code.expires_at < now {
-        return token_error(StatusCode::BAD_REQUEST, "invalid_grant", "Authorization code expired");
+        return token_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_grant",
+            "Authorization code expired",
+        );
     }
     if auth_code.client_id != client_id {
-        return token_error(StatusCode::BAD_REQUEST, "invalid_grant", "Client ID mismatch");
+        return token_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_grant",
+            "Client ID mismatch",
+        );
     }
     if auth_code.redirect_uri != redirect_uri {
-        return token_error(StatusCode::BAD_REQUEST, "invalid_grant", "Redirect URI mismatch");
+        return token_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_grant",
+            "Redirect URI mismatch",
+        );
     }
 
     // Verify client secret
     if !verify_client_secret(&client_id, params.client_secret.as_deref()) {
-        return token_error(StatusCode::UNAUTHORIZED, "invalid_client", "Invalid client credentials");
+        return token_error(
+            StatusCode::UNAUTHORIZED,
+            "invalid_client",
+            "Invalid client credentials",
+        );
     }
 
     // PKCE verification
@@ -146,17 +200,30 @@ async fn handle_authorization_code(params: TokenRequest, ip: &str) -> axum::resp
         let method = auth_code.code_challenge_method.as_deref().unwrap_or("S256");
         let verifier = match &params.code_verifier {
             Some(v) => v,
-            None => return token_error(StatusCode::BAD_REQUEST, "invalid_request", "Missing code_verifier"),
+            None => {
+                return token_error(
+                    StatusCode::BAD_REQUEST,
+                    "invalid_request",
+                    "Missing code_verifier",
+                );
+            }
         };
         if !verify_code_challenge(verifier, challenge, method) {
-            return token_error(StatusCode::BAD_REQUEST, "invalid_grant", "PKCE verification failed");
+            return token_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_grant",
+                "PKCE verification failed",
+            );
         }
     }
 
     // Mark code as used
     with_db(|conn| {
-        conn.execute("UPDATE auth_codes SET used = 1 WHERE code = ?1", rusqlite::params![code])
-            .ok();
+        conn.execute(
+            "UPDATE auth_codes SET used = 1 WHERE code = ?1",
+            rusqlite::params![code],
+        )
+        .ok();
     });
 
     // Load user for token claims
@@ -199,17 +266,35 @@ async fn handle_authorization_code(params: TokenRequest, ip: &str) -> axum::resp
 
     let (kid, private_key) = match get_active_signing_key() {
         Some(k) => k,
-        None => return token_error(StatusCode::INTERNAL_SERVER_ERROR, "server_error", "No signing key available"),
+        None => {
+            return token_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "server_error",
+                "No signing key available",
+            );
+        }
     };
 
     let access_token = match sign_token(&access_token_claims, &private_key, &kid, 3600) {
         Ok(t) => t,
-        Err(_) => return token_error(StatusCode::INTERNAL_SERVER_ERROR, "server_error", "Failed to sign token"),
+        Err(_) => {
+            return token_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "server_error",
+                "Failed to sign token",
+            );
+        }
     };
 
     let id_token = match sign_token(&id_token_claims, &private_key, &kid, 3600) {
         Ok(t) => t,
-        Err(_) => return token_error(StatusCode::INTERNAL_SERVER_ERROR, "server_error", "Failed to sign token"),
+        Err(_) => {
+            return token_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "server_error",
+                "Failed to sign token",
+            );
+        }
     };
 
     // Issue refresh token if offline_access scope
@@ -260,15 +345,31 @@ async fn handle_authorization_code(params: TokenRequest, ip: &str) -> axum::resp
 async fn handle_refresh_token(params: TokenRequest, ip: &str) -> axum::response::Response {
     let rt = match &params.refresh_token {
         Some(t) => t.clone(),
-        None => return token_error(StatusCode::BAD_REQUEST, "invalid_request", "Missing refresh_token"),
+        None => {
+            return token_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "Missing refresh_token",
+            );
+        }
     };
     let client_id = match &params.client_id {
         Some(c) => c.clone(),
-        None => return token_error(StatusCode::BAD_REQUEST, "invalid_request", "Missing client_id"),
+        None => {
+            return token_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "Missing client_id",
+            );
+        }
     };
 
     if !verify_client_secret(&client_id, params.client_secret.as_deref()) {
-        return token_error(StatusCode::UNAUTHORIZED, "invalid_client", "Invalid client credentials");
+        return token_error(
+            StatusCode::UNAUTHORIZED,
+            "invalid_client",
+            "Invalid client credentials",
+        );
     }
 
     let rt_hash = sha256(&rt);
@@ -296,17 +397,35 @@ async fn handle_refresh_token(params: TokenRequest, ip: &str) -> axum::response:
 
     let stored = match stored {
         Some(s) => s,
-        None => return token_error(StatusCode::BAD_REQUEST, "invalid_grant", "Invalid refresh token"),
+        None => {
+            return token_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_grant",
+                "Invalid refresh token",
+            );
+        }
     };
 
     if stored.revoked {
-        return token_error(StatusCode::BAD_REQUEST, "invalid_grant", "Refresh token revoked");
+        return token_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_grant",
+            "Refresh token revoked",
+        );
     }
     if stored.expires_at < now {
-        return token_error(StatusCode::BAD_REQUEST, "invalid_grant", "Refresh token expired");
+        return token_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_grant",
+            "Refresh token expired",
+        );
     }
     if stored.client_id != client_id {
-        return token_error(StatusCode::BAD_REQUEST, "invalid_grant", "Client ID mismatch");
+        return token_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_grant",
+            "Client ID mismatch",
+        );
     }
 
     // Rotate: revoke old, issue new
@@ -363,16 +482,34 @@ async fn handle_refresh_token(params: TokenRequest, ip: &str) -> axum::response:
 
     let (kid, private_key) = match get_active_signing_key() {
         Some(k) => k,
-        None => return token_error(StatusCode::INTERNAL_SERVER_ERROR, "server_error", "No signing key"),
+        None => {
+            return token_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "server_error",
+                "No signing key",
+            );
+        }
     };
 
     let access_token = match sign_token(&access_token_claims, &private_key, &kid, 3600) {
         Ok(t) => t,
-        Err(_) => return token_error(StatusCode::INTERNAL_SERVER_ERROR, "server_error", "Sign failed"),
+        Err(_) => {
+            return token_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "server_error",
+                "Sign failed",
+            );
+        }
     };
     let id_token = match sign_token(&id_token_claims, &private_key, &kid, 3600) {
         Ok(t) => t,
-        Err(_) => return token_error(StatusCode::INTERNAL_SERVER_ERROR, "server_error", "Sign failed"),
+        Err(_) => {
+            return token_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "server_error",
+                "Sign failed",
+            );
+        }
     };
 
     let audit_meta = json!({"grant_type": "refresh_token", "client_id": client_id});
@@ -402,11 +539,21 @@ async fn handle_refresh_token(params: TokenRequest, ip: &str) -> axum::response:
 async fn handle_client_credentials(params: TokenRequest, ip: &str) -> axum::response::Response {
     let client_id = match &params.client_id {
         Some(c) => c.clone(),
-        None => return token_error(StatusCode::BAD_REQUEST, "invalid_request", "Missing client_id"),
+        None => {
+            return token_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "Missing client_id",
+            );
+        }
     };
 
     if !verify_client_secret(&client_id, params.client_secret.as_deref()) {
-        return token_error(StatusCode::UNAUTHORIZED, "invalid_client", "Invalid client credentials");
+        return token_error(
+            StatusCode::UNAUTHORIZED,
+            "invalid_client",
+            "Invalid client credentials",
+        );
     }
 
     // Verify client supports client_credentials grant
@@ -428,12 +575,22 @@ async fn handle_client_credentials(params: TokenRequest, ip: &str) -> axum::resp
 
     let client = match client {
         Some(c) => c,
-        None => return token_error(StatusCode::UNAUTHORIZED, "invalid_client", "Client not found"),
+        None => {
+            return token_error(
+                StatusCode::UNAUTHORIZED,
+                "invalid_client",
+                "Client not found",
+            );
+        }
     };
 
     let grant_types = crate::lib::parse_json_or_space_separated(&client.grant_types);
     if !grant_types.iter().any(|g| g == "client_credentials") {
-        return token_error(StatusCode::BAD_REQUEST, "unauthorized_client", "Grant type not allowed");
+        return token_error(
+            StatusCode::BAD_REQUEST,
+            "unauthorized_client",
+            "Grant type not allowed",
+        );
     }
 
     let requested_scope = params.scope.as_deref().unwrap_or(&client.scopes);
@@ -452,12 +609,24 @@ async fn handle_client_credentials(params: TokenRequest, ip: &str) -> axum::resp
 
     let (kid, private_key) = match get_active_signing_key() {
         Some(k) => k,
-        None => return token_error(StatusCode::INTERNAL_SERVER_ERROR, "server_error", "No signing key"),
+        None => {
+            return token_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "server_error",
+                "No signing key",
+            );
+        }
     };
 
     let access_token = match sign_token(&access_token_claims, &private_key, &kid, 3600) {
         Ok(t) => t,
-        Err(_) => return token_error(StatusCode::INTERNAL_SERVER_ERROR, "server_error", "Sign failed"),
+        Err(_) => {
+            return token_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "server_error",
+                "Sign failed",
+            );
+        }
     };
 
     let audit_meta = json!({"grant_type": "client_credentials", "client_id": client_id});

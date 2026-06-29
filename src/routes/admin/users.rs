@@ -1,9 +1,9 @@
 use axum::{
+    Json, Router,
     extract::{Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -55,7 +55,10 @@ pub struct ResetPassword {
 pub fn router() -> Router {
     Router::new()
         .route("/", get(list_users).post(create_user))
-        .route("/{id}", get(get_user).patch(update_user).delete(delete_user))
+        .route(
+            "/{id}",
+            get(get_user).patch(update_user).delete(delete_user),
+        )
         .route("/{id}/reset-password", post(reset_password))
         .route("/{id}/lock", post(lock_user))
         .route("/{id}/unlock", post(unlock_user))
@@ -74,7 +77,8 @@ async fn list_users(Query(q): Query<ListQuery>) -> impl IntoResponse {
             ),
         };
         let mut stmt = conn.prepare(&sql)?;
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            params.iter().map(|p| p.as_ref()).collect();
         let rows = stmt.query_map(params_refs.as_slice(), |row| {
             Ok(UserRow {
                 id: row.get(0)?,
@@ -98,7 +102,11 @@ async fn list_users(Query(q): Query<ListQuery>) -> impl IntoResponse {
 
     match result {
         Ok(users) => Json(json!(users)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -126,17 +134,25 @@ async fn get_user(Path(id): Path<String>) -> impl IntoResponse {
 
     match result {
         Ok(user) => Json(json!(user)).into_response(),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            (StatusCode::NOT_FOUND, Json(json!({"error": "user not found"}))).into_response()
-        }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(rusqlite::Error::QueryReturnedNoRows) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "user not found"})),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
 async fn create_user(Json(body): Json<CreateUser>) -> impl IntoResponse {
     let pw_hash = match hash_password(&body.password) {
         Ok(h) => h,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))).into_response(),
+        Err(e) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))).into_response();
+        }
     };
 
     let id = generate_secure_token(16);
@@ -158,14 +174,26 @@ async fn create_user(Json(body): Json<CreateUser>) -> impl IntoResponse {
                 None,
                 Some(&json!({"email": body.email})),
             );
-            (StatusCode::CREATED, Json(json!({"id": id, "email": body.email, "tenant_id": body.tenant_id}))).into_response()
+            (
+                StatusCode::CREATED,
+                Json(json!({"id": id, "email": body.email, "tenant_id": body.tenant_id})),
+            )
+                .into_response()
         }
         Err(e) => {
             let msg = e.to_string();
             if msg.contains("UNIQUE") {
-                (StatusCode::CONFLICT, Json(json!({"error": "user with this email already exists in tenant"}))).into_response()
+                (
+                    StatusCode::CONFLICT,
+                    Json(json!({"error": "user with this email already exists in tenant"})),
+                )
+                    .into_response()
             } else {
-                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": msg}))).into_response()
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": msg})),
+                )
+                    .into_response()
             }
         }
     }
@@ -207,39 +235,59 @@ async fn update_user(Path(id): Path<String>, Json(body): Json<UpdateUser>) -> im
         let sql = format!("UPDATE users SET {} WHERE id = ?{idx}", sets.join(", "));
         params.push(Box::new(id.clone()));
 
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            params.iter().map(|p| p.as_ref()).collect();
         conn.execute(&sql, params_refs.as_slice())
     });
 
     match result {
-        Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "user not found or no changes"}))).into_response(),
+        Ok(0) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "user not found or no changes"})),
+        )
+            .into_response(),
         Ok(_) => {
             audit::log_audit(None, Some(&id), audit::USER_UPDATED, None, None);
             Json(json!({"ok": true})).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
 async fn delete_user(Path(id): Path<String>) -> impl IntoResponse {
-    let result = with_db(|conn| {
-        conn.execute("DELETE FROM users WHERE id = ?1", [&id])
-    });
+    let result = with_db(|conn| conn.execute("DELETE FROM users WHERE id = ?1", [&id]));
 
     match result {
-        Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "user not found"}))).into_response(),
+        Ok(0) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "user not found"})),
+        )
+            .into_response(),
         Ok(_) => {
             audit::log_audit(None, Some(&id), audit::USER_DELETED, None, None);
             Json(json!({"ok": true})).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
-async fn reset_password(Path(id): Path<String>, Json(body): Json<ResetPassword>) -> impl IntoResponse {
+async fn reset_password(
+    Path(id): Path<String>,
+    Json(body): Json<ResetPassword>,
+) -> impl IntoResponse {
     let pw_hash = match hash_password(&body.password) {
         Ok(h) => h,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))).into_response(),
+        Err(e) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))).into_response();
+        }
     };
 
     let now = chrono::Utc::now().timestamp();
@@ -252,12 +300,20 @@ async fn reset_password(Path(id): Path<String>, Json(body): Json<ResetPassword>)
     });
 
     match result {
-        Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "user not found"}))).into_response(),
+        Ok(0) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "user not found"})),
+        )
+            .into_response(),
         Ok(_) => {
             audit::log_audit(None, Some(&id), audit::USER_PASSWORD_CHANGED, None, None);
             Json(json!({"ok": true})).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -274,12 +330,20 @@ async fn lock_user(Path(id): Path<String>) -> impl IntoResponse {
     });
 
     match result {
-        Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "user not found"}))).into_response(),
+        Ok(0) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "user not found"})),
+        )
+            .into_response(),
         Ok(_) => {
             audit::log_audit(None, Some(&id), audit::USER_LOCKED, None, None);
             Json(json!({"ok": true, "locked_until": locked_until})).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -294,11 +358,25 @@ async fn unlock_user(Path(id): Path<String>) -> impl IntoResponse {
     });
 
     match result {
-        Ok(0) => (StatusCode::NOT_FOUND, Json(json!({"error": "user not found"}))).into_response(),
+        Ok(0) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "user not found"})),
+        )
+            .into_response(),
         Ok(_) => {
-            audit::log_audit(None, Some(&id), audit::USER_UPDATED, None, Some(&json!({"action": "unlock"})));
+            audit::log_audit(
+                None,
+                Some(&id),
+                audit::USER_UPDATED,
+                None,
+                Some(&json!({"action": "unlock"})),
+            );
             Json(json!({"ok": true})).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }

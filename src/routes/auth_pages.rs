@@ -136,10 +136,10 @@ async fn login_submit(headers: HeaderMap, Form(form): Form<LoginForm>) -> Respon
     let now = now_epoch();
 
     // Check lockout
-    if let Some(locked_until) = user.locked_until {
-        if locked_until > now {
-            return login_redirect("Account temporarily locked. Try again later.", &return_to);
-        }
+    if let Some(locked_until) = user.locked_until
+        && locked_until > now
+    {
+        return login_redirect("Account temporarily locked. Try again later.", &return_to);
     }
 
     // Verify password
@@ -483,10 +483,10 @@ fn safe_return_to(input: Option<&str>) -> String {
 
     // Absolute URL: must match our base_url origin
     let base = &config::get().base_url;
-    if let Some(origin) = extract_origin(base) {
-        if val.starts_with(&origin) {
-            return val.to_string();
-        }
+    if let Some(origin) = extract_origin(base)
+        && val.starts_with(&origin)
+    {
+        return val.to_string();
     }
 
     "/".to_string()

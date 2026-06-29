@@ -673,20 +673,19 @@ async fn sessions_page(headers: HeaderMap) -> Response {
                  ORDER BY created_at DESC",
             )
             .unwrap();
-        let rows = stmt
-            .query_map(rusqlite::params![user.user_id, now], |row| {
-                Ok(SessionRow {
-                    id: row.get(0)?,
-                    ip: row.get(1)?,
-                    user_agent: row.get(2)?,
-                    created_at: row.get(3)?,
-                    expires_at: row.get(4)?,
-                })
+
+        stmt.query_map(rusqlite::params![user.user_id, now], |row| {
+            Ok(SessionRow {
+                id: row.get(0)?,
+                ip: row.get(1)?,
+                user_agent: row.get(2)?,
+                created_at: row.get(3)?,
+                expires_at: row.get(4)?,
             })
-            .unwrap()
-            .filter_map(|r| r.ok())
-            .collect::<Vec<_>>();
-        rows
+        })
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .collect::<Vec<_>>()
     });
 
     let lbl_current = t(locale, " (núverandi)", " (current)");

@@ -14,7 +14,10 @@ pub async fn secure_headers(request: Request<Body>, next: Next) -> Response<Body
         "strict-transport-security",
         "max-age=31536000; includeSubDomains".parse().unwrap(),
     );
-    headers.insert("referrer-policy", "strict-origin-when-cross-origin".parse().unwrap());
+    headers.insert(
+        "referrer-policy",
+        "strict-origin-when-cross-origin".parse().unwrap(),
+    );
     headers.insert(
         "permissions-policy",
         "camera=(), microphone=(), geolocation=(), interest-cohort=()"
