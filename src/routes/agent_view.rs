@@ -69,6 +69,10 @@ fn agent_page_body(
     <div class="agent-section agent-account">
       <h2>Account</h2>
       <a href="/account">AkurAI ID</a>
+      <div class="agent-theme-row">
+        <span class="agent-theme-label">Theme</span>
+        <span class="theme-picker" data-theme-picker></span>
+      </div>
     </div>
   </aside>
 
@@ -398,6 +402,8 @@ mod tests {
         assert!(html.contains("data-agent-prompt"));
         assert!(html.contains("approval.request"));
         assert!(html.contains("tool_call"));
+        // Suite theme picker slot present so theme.js can mount the selector.
+        assert!(html.contains("data-theme-picker"));
     }
 
     #[test]

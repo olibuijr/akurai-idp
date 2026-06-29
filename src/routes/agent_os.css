@@ -148,6 +148,72 @@ body {
   font-weight: 650;
 }
 
+/* Suite theme picker — theme.js mounts a <select.theme-select> into the slot.
+   Token-driven so it re-themes with everything else. */
+.agent-theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+}
+
+.agent-theme-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.agent-theme-row .theme-picker {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.theme-select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 0;
+  max-width: 150px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  padding: 6px 26px 6px 10px;
+  cursor: pointer;
+  line-height: 1.2;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.theme-select:hover {
+  border-color: var(--border-2);
+}
+
+.theme-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.theme-select optgroup {
+  color: var(--fg);
+  background: var(--panel);
+  font-weight: 700;
+}
+
+.theme-select option {
+  color: var(--fg);
+  background: var(--panel);
+  font-weight: 500;
+}
+
 .agent-modebar,
 .agent-nav {
   display: grid;

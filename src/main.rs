@@ -29,6 +29,7 @@ const FAVICON_SVG: &[u8] = include_bytes!("../assets/favicon.svg");
 const APPLE_TOUCH_ICON_PNG: &[u8] = include_bytes!("../assets/apple-touch-icon.png");
 const THEME_JS: &[u8] = include_bytes!("../assets/theme.js");
 const THEMES_CSS: &[u8] = include_bytes!("../assets/themes.css");
+const THEMES_JSON: &[u8] = include_bytes!("../assets/themes.json");
 const LANG_JS: &[u8] = include_bytes!("../assets/lang.js");
 const AGENT_JS: &[u8] = include_bytes!("../assets/agent.js");
 
@@ -99,6 +100,7 @@ async fn main() {
         .route("/apple-touch-icon.png", get(serve_apple_touch_icon))
         .route("/theme.js", get(serve_theme_js))
         .route("/themes.css", get(serve_themes_css))
+        .route("/themes.json", get(serve_themes_json))
         .route("/lang.js", get(serve_lang_js))
         .route("/agent.js", get(serve_agent_js))
         // Health check
@@ -226,6 +228,15 @@ async fn serve_themes_css() -> Response<Body> {
         .header(header::CONTENT_TYPE, "text/css; charset=utf-8")
         .header(header::CACHE_CONTROL, "public, max-age=3600")
         .body(Body::from(THEMES_CSS.to_vec()))
+        .unwrap()
+}
+
+async fn serve_themes_json() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
+        .header(header::CACHE_CONTROL, "public, max-age=3600")
+        .body(Body::from(THEMES_JSON.to_vec()))
         .unwrap()
 }
 
